@@ -2,3 +2,10 @@ language: node_js
 node_js:
 - '0.10'
 script: make test
+deploy:
+  provider: heroku
+  api_key:
+    secure: CZ3q4C0Q/PryE76EjFu1GyovItop1z+LSBBzFRgimKnxFZSKwsLnaW8TJF5tAZqC3jsoom/tkvZboS83pzA4A+NIhgs0prIYYRzcn8O2e+pJcop7EC2TyKHCdsYQSBhik1sLt9Q0BtZMWiFrMvi05BKiGys4u55N/AJexFH+hsA=
+  app: gaia-taskcluster
+  on:
+    repo: lightsofapollo/gaia-taskcluster
