@@ -1,0 +1,29 @@
+{
+  "name": "gaia-taskcluster",
+  "version": "0.0.0",
+  "description": "gaia-taskcluster",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/lightsofapollo/gaia-taskcluster.git"
+  },
+  "author": "James Lal [:lightsofapollo]",
+  "license": "Apache2",
+  "bugs": {
+    "url": "https://github.com/lightsofapollo/gaia-taskcluster/issues"
+  },
+  "homepage": "https://github.com/lightsofapollo/gaia-taskcluster",
+  "devDependencies": {
+    "github-fixtures": "0.0.1",
+    "github": "~0.1.14"
+  },
+  "dependencies": {
+    "promise": "~4.0.0",
+    "express": "~3.4.8",
+    "mozilla-treeherder": "0.0.0",
+    "swagger-jack": "~1.6.2"
+  }
+}

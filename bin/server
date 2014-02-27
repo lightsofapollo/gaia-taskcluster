@@ -1,0 +1,15 @@
+#! /usr/bin/env node
+
+var port = process.env.PORT || 60023;
+var url = process.env.URL || 'http://localhost:' + port;
+
+var server = require('../')({
+  apiVersion: '0.0.1',
+  basePath: url
+});
+
+// configure a process.env.URL if one is not created for for us...
+console.log('server started %s', url);
+server.listen(port, function(err) {
+  console.log(err, 'STUFF');
+});
