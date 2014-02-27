@@ -19,12 +19,18 @@
   "devDependencies": {
     "github-fixtures": "0.0.1",
     "github": "~0.1.14",
-    "nock": "~0.27.2"
+    "nock": "~0.27.2",
+    "mocha-as-promised": "~2.0.0",
+    "supertest": "~0.9.0",
+    "mocha": "~1.17.1"
   },
   "dependencies": {
     "promise": "~4.0.0",
     "express": "~3.4.8",
     "mozilla-treeherder": "0.0.0",
-    "swagger-jack": "~1.6.2"
+    "swagger-jack": "~1.6.2",
+    "aws-sdk": "~2.0.0-rc9",
+    "aws-sdk-promise": "0.0.0",
+    "debug": "~0.7.4"
   }
 }

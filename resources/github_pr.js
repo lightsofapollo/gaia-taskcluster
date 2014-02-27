@@ -22,8 +22,14 @@ var thProject = require('mozilla-treeherder/project');
 
 var controller = {
   post: function(req, res, next) {
-    console.log(req.body);
-    res.send(200);
+    var body = res.body;
+    var pull_request = req.body.pull_request;
+
+    if (!pull_request) {
+      var err = new Error('Invalid pull request data');
+      err.status = 400;
+      return next(err);
+    }
   }
 };
 
