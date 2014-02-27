@@ -29,6 +29,14 @@ Here is what the configuration file looks like:
 ]
 ```
 
+## Configuring Github
+
+To link a project to treeherder from github some hooks are required:
+
+  - A `Pull Request` hook to the /github/pull_request url
+
+TODO: Add auto configuration script from repo (or via a UI)
+
 ## Env configuration
 
     - `GITHUB_OAUTH_TOKEN` : github oauth token to use when making
