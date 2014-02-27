@@ -51,8 +51,7 @@ function loadS3(path) {
   });
 
   debug('s3', bucket, bucketPath);
-  return s3.getObject(
-    { Bucket: bucket, Key: bucketPath }
+  return s3.getObject({ Bucket: bucket, Key: bucketPath }
   ).promise().then(function(res) {
     return JSON.parse(res.data.Body);
   });

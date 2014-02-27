@@ -13,7 +13,7 @@ Here is what the configuration file looks like:
 [
   {
     // treeherder project name
-    project: 'gaia',
+    name: 'gaia',
 
     // treeherder authentication (you must get this from the treeherder
     // team).
@@ -28,3 +28,12 @@ Here is what the configuration file looks like:
   }
 ]
 ```
+
+## Env configuration
+
+    - `GITHUB_OAUTH_TOKEN` : github oauth token to use when making
+      github api calls (currently optional)
+
+    - `TREEHEDER_PROJECT_CONFIG_URI` : where the treeherder project
+      configuration file lives... This can be a local path (defaults to
+      ./project.json) or a path on s3 (s3://bucket/key/in/bucket.json)
