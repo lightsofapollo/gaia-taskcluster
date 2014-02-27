@@ -37,3 +37,14 @@ Here is what the configuration file looks like:
     - `TREEHEDER_PROJECT_CONFIG_URI` : where the treeherder project
       configuration file lives... This can be a local path (defaults to
       ./project.json) or a path on s3 (s3://bucket/key/in/bucket.json)
+
+    - `AWS_SECRET_ACCESS_KEY` : Only needed if
+       TREEHEDER_PROJECT_CONFIG_URI is set to a s3 url
+
+    - `AWS_ACCESS_KEY_ID` : Only needed if TREEHEDER_PROJECT_CONFIG_URI
+       is set to an s3 url.
+
+## Deployment
+
+Every commit in master will be pushed to heroku if master is in a green
+state (continuous deployment via travis-ci). Current staging url is: http://gaia-taskcluster.herokuapp.com/
