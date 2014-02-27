@@ -7,6 +7,7 @@ var consts = require('./consts');
 var crypto = require('crypto');
 var request = require('superagent-promise');
 
+var Promise = require('promise');
 var OAuth = require('oauth').OAuth;
 
 /**
@@ -88,45 +89,76 @@ var project = new Project('gaia', {
 */
 function Project(project, config) {
   assert(project, 'project is required');
-  assert(config.consumerKey, '.consumerKey is required');
-  assert(config.consumerSecret, '.consumerSecret is required');
 
   this.project = project;
-
-  this.user = config.user || TREEHERDER_USER;
-
-  // https://github.com/ciaranj/node-oauth/blob/171e668f386a3e1ba0bcb915b8dc7fdc9335aa62/lib/oauth.js#L9
-  this.oauth = new OAuth(
-    null, // 2 legged oauth has no urls
-    null, // ^
-    config.consumerKey, // per project key
-    config.consumerSecret, // per project secret
-    '1.0', // oauth version
-    null, // no callbacks in 2 legged oauth
-    'HMAC-SHA1' // signature type expected by the treeherder server.
-  );
-
-  var url = config.baseUrl || consts.baseUrl;
+  this.user = (config && config.user) || TREEHERDER_USER;
+  var url = (config && config.baseUrl) || consts.baseUrl;
   this.url = url + 'project/' + project + '/';
+
+  // generally oauth is only required for posting so don't require it for all
+  // requests...
+  if (
+    config &&
+    config.consumerKey &&
+    config.consumerSecret
+  ) {
+    // https://github.com/ciaranj/node-oauth/blob/171e668f386a3e1ba0bcb915b8dc7fdc9335aa62/lib/oauth.js#L9
+    this.oauth = new OAuth(
+      null, // 2 legged oauth has no urls
+      null, // ^
+      config.consumerKey, // per project key
+      config.consumerSecret, // per project secret
+      '1.0', // oauth version
+      null, // no callbacks in 2 legged oauth
+      'HMAC-SHA1' // signature type expected by the treeherder server.
+    );
+
+  }
 }
 
 Project.prototype = {
   /**
-  Issue a project specific api request
+  Issue a project specific api request with oauth credentials.
 
   @param {String} method http method type.
   @param {String} path the subpath in the project.
   @param {Object} body of the http request.
   @return {Promise<Object>}
   */
-  request: function(method, path, body) {
-    return buildRequest(
-      this.oauth,
-      this.user,
+  oauthRequest: function(method, path, body) {
+    return new Promise(function(accept, reject) {
+      if (!this.oauth) {
+        return reject(
+          new Error('Cannot issue secured request without consumerKey and consumerSecret')
+        );
+      }
+
+      buildRequest(
+        this.oauth,
+        this.user,
+        method,
+        this.url + path,
+        body
+      ).then(
+        accept,
+        reject
+      );
+    }.bind(this));
+
+  },
+
+  /**
+  Issue a project specific api request (which does not require credentials)
+
+  @param {String} method http method type.
+  @param {String} path the subpath in the project.
+  @return {Promise<Object>}
+  */
+  request: function(method, path) {
+    return request(
       method,
-      this.url + path,
-      body
-    );
+      this.url + path
+    ).end();
   },
 
   /**
@@ -170,7 +202,7 @@ Project.prototype = {
   @return {Promise<Object>}
   */
   postResultset: function(resultset) {
-    return this.request('POST', 'resultset/', resultset).then(handleResponse);
+    return this.oauthRequest('POST', 'resultset/', resultset).then(handleResponse);
   },
 
   /**
@@ -214,7 +246,7 @@ Project.prototype = {
   @see http://treeherder-dev.allizom.org/docs/#!/project/Jobs_post_4
   */
   postJobs: function(jobs) {
-    return this.request('POST', 'jobs/', jobs).then(handleResponse);
+    return this.oauthRequest('POST', 'jobs/', jobs).then(handleResponse);
   }
 
 };

@@ -144,4 +144,12 @@ suite('project', function() {
       });
     });
   });
+
+  test('attempt to issue post without oauth', function() {
+    var subject = new Project(PROJECT_NAME);
+
+    return subject.postResultset().catch(function(err) {
+      assert.ok(err);
+    });
+  });
 });
