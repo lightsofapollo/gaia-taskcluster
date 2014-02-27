@@ -4,12 +4,14 @@ suite('REST /github/pull_request', function() {
   var app = require('../')();
   var nock = require('nock');
 
+  //nock.recorder.rec()
+
   suite('POST - submitting results to treeherder', function() {
     // actual github pull request event taken from the webhook UI
     var fixture = require('../test/fixtures/github_pull_request.json');
 
     setup(function(done) {
-      require('../test/nock/gaia_pull_request_success')
+      require('../test/nock/gaia_pull_request_success');
       request(app).
         post('/github/pull_request').
         send(fixture).
