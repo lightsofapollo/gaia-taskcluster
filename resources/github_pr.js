@@ -1,12 +1,12 @@
 var api = {
-  resourcePath: '/github',
+  resourcePath: '/github/pull_request/',
   apis: [
     {
-      path: '/github',
+      path: '/github/pull_request/',
       operations: [
         {
           summary:
-            'Handle incoming github pull events and link them to treeherder',
+            'Handle incoming pull requests and link them to treeherder',
 
           httpMethod: 'POST',
           nickname: 'post',
@@ -21,7 +21,8 @@ var thGithub = require('mozilla-treeherder/github');
 var thProject = require('mozilla-treeherder/project');
 
 var controller = {
-  post: function(req, res) {
+  post: function(req, res, next) {
+    console.log(req.body);
     res.send(200);
   }
 };

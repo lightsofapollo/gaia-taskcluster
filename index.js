@@ -11,7 +11,7 @@ module.exports = function buildApp(config) {
     app,
     config,
     [
-      require('./resources/github')
+      require('./resources/github_pr')
     ]
   ));
 
