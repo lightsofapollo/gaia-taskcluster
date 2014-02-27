@@ -1,6 +1,15 @@
 suite('project config', function() {  
-  var nock = require('nock');
   var subject = require('./project_config');
+
+  var nock = require('nock');
+
+  suiteSetup(function() {
+    nock.disableNetConnect();
+  });
+
+  suiteTeardown(function() {
+    nock.enableNetConnect();
+  });
 
   test('from disk', function() {
     var fixture = __dirname + '/test/fixtures/projects.json';

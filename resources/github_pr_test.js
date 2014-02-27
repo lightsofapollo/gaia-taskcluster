@@ -29,4 +29,5 @@ suite('REST /github/pull_request', function() {
       });
     });
   });
+
 });
