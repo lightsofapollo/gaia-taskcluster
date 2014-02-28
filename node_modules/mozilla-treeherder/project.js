@@ -9,6 +9,7 @@ var request = require('superagent-promise');
 
 var Promise = require('promise');
 var OAuth = require('oauth').OAuth;
+var HttpError = require('./httperror');
 
 /**
 @kind constant
@@ -67,7 +68,7 @@ Generic helper for resolving http request promises.
 */
 function handleResponse(res) {
   if (res.ok) return res.body;
-  throw res.error;
+  throw new HttpError(res);
 }
 
 /**
