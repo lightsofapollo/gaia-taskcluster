@@ -11,17 +11,20 @@ function githubTasks(github, pullRequest) {
     provisionerId: 'aws-provisioner',
     workerType: 'ami-cc5c30fc',
 
+    routing: 'gaia-taskcluster',
+
     metadata: {
       // REALLY quick hack
       owner: 'jlal@mozilla.com'
     },
 
     payload: {
-      image: 'lightsofapollo/gaia-prebuilt',
-      command: ['make test-integration REPORTER=mocha-reporter-tbpl']
+      image: 'ubuntu',
+      command: ['sleep 15']
     },
 
     tags: {
+      treeherderProject: 'gaia',
       treeherderResultset: pullRequest.html_url,
       treeherderSymbol: 'GI'
     }

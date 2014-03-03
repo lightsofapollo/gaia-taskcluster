@@ -114,7 +114,7 @@ var controller = {
       var taskIds = [];
       list.forEach(function(task) {
         console.log('Posted new task %s', task.status.taskId);
-        taskIds.push(task.status.taskIds);
+        taskIds.push(task.status.taskId);
       });
 
       // respond with the task ids (mostly for debugging and testing)

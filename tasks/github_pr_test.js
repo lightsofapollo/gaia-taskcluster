@@ -4,7 +4,6 @@ suite('github_tasks', function() {
 
   suite('build single task', function() {
     var pr = PullRequest.create();
-    var config = require('../task_config')();
 
     test('tasks', function() {
       return subject({}, pr).then(function(result) {
@@ -12,7 +11,7 @@ suite('github_tasks', function() {
 
         var task = result[0];
         assert.equal(
-          task.tags.treeeherderResultset,
+          task.tags.treeherderResultset,
           pr.html_url
         );
       });
