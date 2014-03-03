@@ -1,5 +1,19 @@
 var api = {
   resourcePath: '/github/pull_request/',
+  models: {
+    TaskList: {
+      id: 'TaskList',
+      properties: {
+        taskIds: {
+          description: 'An array of task ids as defined by taskcluster',
+          type: 'array',
+          items: {
+            type: 'string'
+          }
+        }
+      }
+    }
+  },
   apis: [
     {
       path: '/github/pull_request/',
@@ -10,15 +24,18 @@ var api = {
 
           httpMethod: 'POST',
           nickname: 'post',
-          responseClass: 'void'
+          responseClass: 'TaskList'
         }
       ]
     }
   ]
 };
 
+var Promise = require('promise');
 var TreeherderGithub = require('mozilla-treeherder/github');
 var TreeherderProject = require('mozilla-treeherder/project');
+
+var githubTasks = require('../tasks/github_pr');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 
 function findProject(projects, user, repo) {
@@ -44,7 +61,16 @@ var controller = {
       return next(err);
     }
 
+    // taskcluster queue
+    var queue = res.app.get('queue');
+
+    // github client
+    var github = res.app.get('github');
+
+    // project configuration
     var projects = res.app.get('projects');
+
+    // github params
     var user = ghRepository.owner.login;
     var repo = ghRepository.name;
     var number = body.pull_request.number;
@@ -58,7 +84,7 @@ var controller = {
 
     // project is valid so lets continue...
     TreeherderGithub.pull(project.name, {
-      github: req.app.get('github'),
+      github: github,
       repo: repo,
       user: user,
       number: number
@@ -72,8 +98,28 @@ var controller = {
       // treeherder expects an array so just wrap our single resultset.
       return thProject.postResultset([resultset]);
     }).then(function() {
+
       console.log('posted resultset for ' + user + '/' + repo + ' #' + number);
-      res.send(200);
+      return githubTasks(req.app.get('github'), body.pull_request);
+
+    }).then(function(tasks) {
+
+      var promises = tasks.map(function(task) {
+        return queue.postTask(task);
+      });
+
+      return Promise.all(promises);
+
+    }).then(function(list) {
+      var taskIds = [];
+      list.forEach(function(task) {
+        console.log('Posted new task %s', task.status.taskId);
+        taskIds.push(task.status.taskIds);
+      });
+
+      // respond with the task ids (mostly for debugging and testing)
+      return res.send(200, { taskIds: taskIds });
+
     }).catch(function(err) {
       console.error('Could not generate or post resulset from github pr');
       console.error(err);

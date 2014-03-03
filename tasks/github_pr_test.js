@@ -4,16 +4,17 @@ suite('github_tasks', function() {
 
   suite('build single task', function() {
     var pr = PullRequest.create();
+    var config = require('../task_config')();
 
     test('tasks', function() {
       return subject({}, pr).then(function(result) {
         assert.ok(Array.isArray(result));
 
         var task = result[0];
-        assert.deepEqual(task.tags.treeherder, {
-          resultset: pr.html_url,
-          symbol: 'GI'
-        });
+        assert.equal(
+          task.tags.treeeherderResultset,
+          pr.html_url
+        );
       });
     });
   });
