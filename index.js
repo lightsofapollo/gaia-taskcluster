@@ -39,7 +39,7 @@ module.exports = function buildApp(config) {
     if (projectsResolved) return next();
     projects.then(next, next);
   });
- 
+
   // REST resources
   app.use('/swagger/', express.static(__dirname + '/swagger/'));
   app.use(express.json());

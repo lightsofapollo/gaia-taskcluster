@@ -61,7 +61,7 @@ var controller = {
       github: req.app.get('github'),
       repo: repo,
       user: user,
-      number: number 
+      number: number
     }).then(function(resultset) {
       // submit the resultset to treeherder
       var thProject = new TreeherderProject(project.name, {
