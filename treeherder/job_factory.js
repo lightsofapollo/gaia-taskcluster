@@ -23,6 +23,8 @@ var JobFactory = new Factory({
     result: '',
     option_collection: Opts,
     job_guid: '',
+    group_symbol: '?',
+    group_name: 'gaia',
     // submit_timestamp: (new Date()).valueOf()
     job_symbol: 'GI',
     state: 'pending',

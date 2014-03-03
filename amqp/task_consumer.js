@@ -2,6 +2,7 @@ var Consumer = require('amqpworkers/consumer');
 var Project = require('mozilla-treeherder/project');
 var Promise = require('promise');
 var Status = require('../treeherder/status');
+var debug = require('debug')('gaia-taskcluster:task-consumer');
 
 function jobFromTask(queue, taskState) {
   return new Promise(function(accept, reject) {
@@ -55,6 +56,7 @@ TaskConsumer.prototype = {
   read: function(content, message) {
     return jobFromTask(this.queue, content).then(function(job) {
       var project = this.treeherderProject(job.project || 'gaia');
+      debug('job', job);
       return project.postJobs([job]);
     }.bind(this));
   }

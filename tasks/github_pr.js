@@ -20,7 +20,7 @@ function githubTasks(github, pullRequest) {
 
     payload: {
       image: 'ubuntu',
-      command: ['sleep 15']
+      command: ['/bin/bash', '-c', 'echo "xwot"']
     },
 
     tags: {
