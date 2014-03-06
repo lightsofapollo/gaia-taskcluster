@@ -1,14 +1,12 @@
 var Schema = require('amqpworkers/schema');
 var Exchanges = require('taskcluster-client/exchange');
 
-var TASK_ROUTING_KEY = 'gaia-taskcluster';
-
 /**
 Build a schema object based on the queue configuration
 */
 module.exports = function(queue, options) {
   var route = Exchanges.taskRoutingKey({
-    taskRouting: TASK_ROUTING_KEY
+    taskRouting: process.env.TASKCLUSTER_ROUTING_KEY
   });
 
   return new Schema({

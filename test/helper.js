@@ -1,6 +1,11 @@
 require('mocha-as-promised')();
 global.assert = require('assert');
 
+process.env.TASKCLUSTER_ROUTING_KEY =
+  process.env.TASKCLUSTER_ROUTING_KEY ||
+  'gaia-test';
+
+
 /**
 Override the CONFIG_URI to the test configuration unless its set.
 */

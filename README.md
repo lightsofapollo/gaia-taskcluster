@@ -38,6 +38,10 @@ To link a project to treeherder from github some hooks are required:
 TODO: Add auto configuration script from repo (or via a UI)
 
 ## Env configuration
+    - `GAIA_TASKCLUSTER_QUEUE`: queue name to create and bind to.
+
+    - `TASKCLUSTER_ROUTING_KEY`: routing key to use when posting tasks
+      and binding to task queues.
 
     - `GITHUB_OAUTH_TOKEN` : github oauth token to use when making
       github api calls (currently optional)

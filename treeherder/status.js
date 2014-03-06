@@ -79,12 +79,12 @@ var StatusHandler = {
       var logs = body.logs;
       var base = this.base(payload, task);
       base.job.state = 'running';
-      base.job.artifacts = {
+      base.job.artifact = {
         type: 'json',
         name: 'Job Info',
         blob: {
           tinderbox_printlines: [
-            'taskcluster task: ',
+            'taskcluster task link: ' +
             'http://docs.taskcluster.net/tools/task-inspector/#' +
             payload.status.taskId
           ]
@@ -97,6 +97,7 @@ var StatusHandler = {
         };
       });
 
+      console.log('CREATE:', base);
       return base;
     }.bind(this));
   }),
