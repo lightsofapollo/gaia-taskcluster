@@ -4,12 +4,12 @@ node_js:
 script: npm run-script doc && npm run-script test
 deploy:
   provider: s3
+  access_key_id: AKIAIA6HQQI46VJ55NBA
   skip_cleanup: true
-  access_key_id: AKIAJRL3G6MJIOJSMUFA
   secret_access_key:
-    secure: QCNL0A+5C4KTpPHcobL8iIhPeduw0iZe8Qyk1xnRKs1FL1/SBBMTTPsX/5ktr4gioDICeHsRh9V86S1M/fgq589DOgYGcCJc3Clnv9aXmhClKMl0WwnDZax6l6WHQwOidB3qGJ3sR28IIuf/bO5fhzYSabPmfY6Q6MMkFLtFxNk=
+    secure: SmkhvvNFQzf+XomietqCPILsGz9ndcpsMwOa+63F8431IavLU76WUr770qNWLFsZqL1SQUVhdN+jMcQkhDf2ITmAqpGiabGFrBUKD607lKdw17EB0eAG17Aoo9VBUNu4rw/EztVnXChj5FtEhaIRXb/2jKofP0BeT1iv+YmzCP0=
   bucket: lightsofapollo-oss
-  local-dir: ./doc/
+  local-dir: ./doc
   upload-dir: taskcluster-client
   on:
     repo: taskcluster/client

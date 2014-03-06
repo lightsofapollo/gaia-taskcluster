@@ -9,7 +9,7 @@ function githubTasks(github, pullRequest) {
   var task = TaskFactory.create({
     // Ideally these are not present in the task config itself
     provisionerId: 'aws-provisioner',
-    workerType: 'ami-cc5c30fc',
+    workerType: 'docker-worker',
 
     routing: 'gaia-taskcluster',
 
@@ -19,8 +19,13 @@ function githubTasks(github, pullRequest) {
     },
 
     payload: {
-      image: 'ubuntu',
-      command: ['/bin/bash', '-c', 'echo "xwot"']
+      image: 'lightsofapollo/gaia-taskenv',
+      command: [
+        './bin/github_pr ' +
+        'https://github.com/mozilla-b2g/gaia.git ' +
+        pullRequest.number + ' ' +
+        'make test-integration'
+      ]
     },
 
     tags: {

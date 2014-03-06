@@ -13,26 +13,26 @@ var util = require('util');
 queue messages for pending tasks.
 @constant
 */
-exports.QUEUE_TASK_PENDING = 'v1/queue:task-pending';
+exports.QUEUE_TASK_PENDING = 'queue/v1/task-pending';
 
 /**
 queue messages for running tasks.
 @type String
 @constant
 */
-exports.QUEUE_TASK_RUNNING = 'v1/queue:task-running';
+exports.QUEUE_TASK_RUNNING = 'queue/v1/task-running';
 
 /**
 queue messages for completed tasks.
 @constant
 */
-exports.QUEUE_TASK_COMPLETED = 'v1/queue:task-completed';
+exports.QUEUE_TASK_COMPLETED = 'queue/v1/task-completed';
 
 /**
 queue messages for failed tasks.
 @constant
 */
-exports.QUEUE_TASK_FAILED = 'v1/queue:task-failed';
+exports.QUEUE_TASK_FAILED = 'queue/v1/task-failed';
 
 /**
 Rollup of all task related exchanges

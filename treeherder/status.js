@@ -79,6 +79,17 @@ var StatusHandler = {
       var logs = body.logs;
       var base = this.base(payload, task);
       base.job.state = 'running';
+      base.job.artifacts = {
+        type: 'json',
+        name: 'Job Info',
+        blob: {
+          tinderbox_printlines: [
+            'taskcluster task: ',
+            'http://docs.taskcluster.net/tools/task-inspector/#' +
+            payload.status.taskId
+          ]
+        }
+      };
       base.job.log_references = Object.keys(logs).map(function(name) {
         return {
           url: logs[name],
