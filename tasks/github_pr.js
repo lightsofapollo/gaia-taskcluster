@@ -65,7 +65,7 @@ function githubTasks(github, pullRequest) {
   });
 
 
-  return Promise.cast([gi, lint]);
+  return Promise.cast([lint, gi]);
 }
 
 module.exports = githubTasks;
