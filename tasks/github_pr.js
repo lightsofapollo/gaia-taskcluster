@@ -9,7 +9,7 @@ function githubTasks(github, pullRequest) {
   var gi = TaskFactory.create({
     // Ideally these are not present in the task config itself
     provisionerId: 'aws-provisioner',
-    workerType: 'ami-4e7e117e',
+    workerType: 'ami-9ec3acae',
 
     routing: process.env.TASKCLUSTER_ROUTING_KEY,
 
