@@ -43,6 +43,7 @@ var Task = new Factory({
     provisionerId: 'dont-spawn-machines-without-real-value',
     routing: '',
     // workerType: ''
+    timeout: 180, // in seconds
     retries: 1,
     priority: 5,
     // created: new Date()
