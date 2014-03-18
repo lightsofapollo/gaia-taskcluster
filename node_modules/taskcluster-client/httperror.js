@@ -3,7 +3,7 @@
 
 Builds error objects from failed (non 200 range) http requests.
 
-@module taskcluster-client/queueerror
+@module taskcluster-client/httperror
 */
 var util = require('util');
 
@@ -62,6 +62,17 @@ function HttpError(response) {
     validation
   );
 }
+
+/**
+Wrap a response promise with http error handling.
+
+@param {Promise} promise from a request.
+@return {Promise} promise wrapped with error handling.
+*/
+HttpError.responseHandler = function(res) {
+  if (res.error) throw new HttpError(res);
+  return res.body;
+};
 
 HttpError.prototype = Object.create(Error.prototype);
 

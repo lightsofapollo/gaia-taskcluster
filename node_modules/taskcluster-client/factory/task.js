@@ -40,7 +40,7 @@ var Task = new Factory({
 
   properties: {
     version: '0.2.0',
-    provisionerId: 'dont-spawn-machines-without-real-value',
+    provisionerId: 'dont-spawn-machines',
     routing: '',
     // workerType: ''
     timeout: 180, // in seconds
