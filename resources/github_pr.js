@@ -35,7 +35,7 @@ var Promise = require('promise');
 var TreeherderGithub = require('mozilla-treeherder/github');
 var TreeherderProject = require('mozilla-treeherder/project');
 
-var githubTasks = require('../tasks/github_pr');
+var githubGraph = require('../tasks/github_pr');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 
 function findProject(projects, user, repo) {
@@ -63,6 +63,8 @@ var controller = {
 
     // taskcluster queue
     var queue = res.app.get('queue');
+    // taskcluster graph
+    var graph = res.app.get('graph');
 
     // github client
     var github = res.app.get('github');
@@ -100,25 +102,16 @@ var controller = {
     }).then(function() {
 
       console.log('posted resultset for ' + user + '/' + repo + ' #' + number);
-      return githubTasks(req.app.get('github'), body.pull_request);
+      return githubGraph(req.app.get('github'), body.pull_request);
 
-    }).then(function(tasks) {
+    }).then(function(projectGraph) {
 
-      var promises = tasks.map(function(task) {
-        return queue.postTask(task);
-      });
+      return graph.create(projectGraph);
 
-      return Promise.all(promises);
-
-    }).then(function(list) {
-      var taskIds = [];
-      list.forEach(function(task) {
-        console.log('Posted new task %s', task.status.taskId);
-        taskIds.push(task.status.taskId);
-      });
+    }).then(function(result) {
 
       // respond with the task ids (mostly for debugging and testing)
-      return res.send(200, { taskIds: taskIds });
+      return res.send(200, result);
 
     }).catch(function(err) {
       console.error('Could not generate or post resulset from github pr');

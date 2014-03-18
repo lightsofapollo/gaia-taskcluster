@@ -5,8 +5,8 @@ var Exchanges = require('taskcluster-client/exchange');
 Build a schema object based on the queue configuration
 */
 module.exports = function(queue, options) {
-  var route = Exchanges.taskRoutingKey({
-    taskRouting: process.env.TASKCLUSTER_ROUTING_KEY
+  var route = Exchanges.graphRoutingKey({
+    taskGraphRouting: process.env.TASKCLUSTER_ROUTING_KEY + '.#'
   });
 
   return new Schema({

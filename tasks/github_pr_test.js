@@ -5,15 +5,10 @@ suite('github_tasks', function() {
   suite('build single task', function() {
     var pr = PullRequest.create();
 
+    // XXX: This should test the in tree configuration test case when it exists.
     test('tasks', function() {
       return subject({}, pr).then(function(result) {
-        assert.ok(Array.isArray(result));
-
-        var task = result[0];
-        assert.equal(
-          task.tags.treeherderResultset,
-          pr.html_url
-        );
+        assert.ok(result.tasks);
       });
     });
   });

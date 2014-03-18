@@ -25,8 +25,7 @@ suite('REST /github/pull_request', function() {
 
     test('project creates resultset', function() {
       var project = new TreeherderProject('gaia');
-      assert.ok(responseBody.taskIds, 'returns taskIds in response');
-      assert.ok(responseBody.taskIds[0], 'has task id');
+      assert.ok(responseBody.status.taskGraphId, 'returns task graph id');
 
       return project.getResultset().then(function(list) {
         var item = list.some(function(item) {

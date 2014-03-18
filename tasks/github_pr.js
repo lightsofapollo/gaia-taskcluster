@@ -1,5 +1,10 @@
 var Promise = require('promise');
 var TaskFactory = require('taskcluster-client/factory/task');
+var GraphFactory = require('taskcluster-client/factory/graph');
+
+
+var PROVISIONER = 'aws-provisioner';
+var WORKER_TYPE = 'ami-ca7917fa';
 
 /**
 Build the list of github tasks from a github pull request.
@@ -8,10 +13,10 @@ function githubTasks(github, pullRequest) {
   // XXX: This is a big hack we should pull this from the repo itself.
   var gi = TaskFactory.create({
     // Ideally these are not present in the task config itself
-    provisionerId: 'aws-provisioner',
-    workerType: 'ami-7cdcb34c',
+    provisionerId: PROVISIONER,
+    workerType: WORKER_TYPE,
 
-    routing: process.env.TASKCLUSTER_ROUTING_KEY,
+    routing: '',
 
     metadata: {
       // REALLY quick hack
@@ -37,10 +42,9 @@ function githubTasks(github, pullRequest) {
 
   var lint = TaskFactory.create({
     // Ideally these are not present in the task config itself
-    provisionerId: 'aws-provisioner',
-    workerType: 'ami-7cdcb34c',
-
-    routing: process.env.TASKCLUSTER_ROUTING_KEY,
+    provisionerId: PROVISIONER,
+    workerType: WORKER_TYPE,
+    routing: '',
 
     metadata: {
       // REALLY quick hack
@@ -64,8 +68,18 @@ function githubTasks(github, pullRequest) {
     }
   });
 
+  return Promise.from(GraphFactory.create({
+    routing: process.env.TASKCLUSTER_ROUTING_KEY + '.',
+    tasks: {
+      lint: {
+        task: gi
+      },
 
-  return Promise.cast([lint, gi]);
+      'marionette integration tests': {
+        task: lint
+      }
+    }
+  }));
 }
 
 module.exports = githubTasks;
