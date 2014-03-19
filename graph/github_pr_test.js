@@ -71,14 +71,14 @@ suite('github', function() {
       assert.equal(two.payload.env.CUSTOM, true);
     });
 
-    test('metadata', function() {
+    test('tags', function() {
       eachTask(decorated, function(task) {
         // ugh> inner task definition.
-        var metadata = task.task.metadata;
-        assert.equal(metadata.commit, pr.head.sha);
-        assert.equal(metadata.repository, pr.base.repo.html_url);
-        assert.equal(metadata.pullRequest, pr.html_url);
-        assert.equal(metadata.githubUsername, pr.head.user.login);
+        var tags = task.task.tags;
+        assert.equal(tags.commit, pr.head.sha);
+        assert.equal(tags.repository, pr.base.repo.html_url);
+        assert.equal(tags.pullRequest, pr.html_url);
+        assert.equal(tags.githubUsername, pr.head.user.login);
       });
     });
 

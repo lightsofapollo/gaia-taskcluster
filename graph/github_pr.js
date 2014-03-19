@@ -28,7 +28,9 @@ function decorateGraph(graph, github, pullRequest) {
   // environment variables these do not override if set in the task.
   var envs = {
     CI: true,
-    GH_BRANCH: pullRequest.base.label,
+    // we use the label since it's available from the PR but not the
+    // prefix (so this would be master instead of repo:master)
+    GH_BRANCH: pullRequest.base.label.split(':').pop(),
     GH_COMMIT: pullRequest.base.sha,
     GH_PULL_REQUEST: 'true',
     GH_PULL_REQUEST_NUMBER: pullRequest.number,

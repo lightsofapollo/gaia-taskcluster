@@ -20,7 +20,7 @@ var gi = {
   },
 
   payload: {
-    image: 'lightsofapollo/gaia-taskenv',
+    image: 'registry.taskcluster.net/lightsofapollo/gaia-taskenv',
     command: [
       './bin/github_pr ' +
       'https://github.com/$GH_REPO_SLUG.git ' +
@@ -47,7 +47,7 @@ var lint = {
   },
 
   payload: {
-    image: 'lightsofapollo/gaia-taskenv',
+    image: 'registry.taskcluster.net/lightsofapollo/gaia-taskenv',
     command: [
       './bin/github_pr ' +
       'https://github.com/$GH_REPO_SLUG.git ' +
