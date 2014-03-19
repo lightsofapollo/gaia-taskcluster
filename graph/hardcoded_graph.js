@@ -22,7 +22,10 @@ var gi = {
   payload: {
     image: 'lightsofapollo/gaia-taskenv',
     command: [
-      './bin/github make test-integration REPORTER=mocha-tbpl-reporter'
+      './bin/github_pr ' +
+      'https://github.com/$GH_REPO_SLUG.git ' +
+      '$GH_PULL_REQUEST_NUMBER ' +
+      'make test-integration REPORTER=mocha-tbpl-reporter'
     ]
   },
 
@@ -46,7 +49,10 @@ var lint = {
   payload: {
     image: 'lightsofapollo/gaia-taskenv',
     command: [
-      './bin/github make hint'
+      './bin/github_pr ' +
+      'https://github.com/$GH_REPO_SLUG.git ' +
+      '$GH_PULL_REQUEST_NUMBER ' +
+      'make hint'
     ]
   },
 
