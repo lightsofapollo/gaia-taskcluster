@@ -35,7 +35,7 @@ var Promise = require('promise');
 var TreeherderGithub = require('mozilla-treeherder/github');
 var TreeherderProject = require('mozilla-treeherder/project');
 
-var githubGraph = require('../tasks/github_pr');
+var githubGraph = require('../graph/github_pr');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 
 function findProject(projects, user, repo) {
@@ -102,11 +102,19 @@ var controller = {
     }).then(function() {
 
       console.log('posted resultset for ' + user + '/' + repo + ' #' + number);
-      return githubGraph(req.app.get('github'), body.pull_request);
+
+      // fetch the raw graph from github
+      return githubGraph.fetchGraph(github, req.body.pull_request);
 
     }).then(function(projectGraph) {
 
-      return graph.create(projectGraph);
+      // decorate the graph with the pull request
+      return githubGraph.decorateGraph(
+        projectGraph, github, body.pull_request
+      ).then(
+        // then post it to taskcluster for processing
+        graph.create.bind(graph)
+      );
 
     }).then(function(result) {
 
