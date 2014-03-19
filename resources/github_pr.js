@@ -54,8 +54,16 @@ var controller = {
   post: function(req, res, next) {
     var body = req.body;
     var ghRepository = body.repository;
+    var ghPr = body.pull_request;
+    var ghAction = body.action;
 
-    if (!body.pull_request) {
+    // ack closed pull requests but don't create any resources in th or
+    // tc.
+    if (ghAction === 'closed') {
+      return res.send(200);
+    }
+
+    if (!ghPr) {
       var err = new Error('Invalid pull request data');
       err.status = 400;
       return next(err);
@@ -75,7 +83,7 @@ var controller = {
     // github params
     var user = ghRepository.owner.login;
     var repo = ghRepository.name;
-    var number = body.pull_request.number;
+    var number = ghPr.number;
 
     var project = findProject(projects, user, repo);
     if (!project) {
@@ -104,13 +112,13 @@ var controller = {
       console.log('posted resultset for ' + user + '/' + repo + ' #' + number);
 
       // fetch the raw graph from github
-      return githubGraph.fetchGraph(github, req.body.pull_request);
+      return githubGraph.fetchGraph(github, ghPr);
 
     }).then(function(projectGraph) {
 
       // decorate the graph with the pull request
       return githubGraph.decorateGraph(
-        projectGraph, github, body.pull_request
+        projectGraph, github, ghPr
       ).then(
         // then post it to taskcluster for processing
         graph.create.bind(graph)
@@ -119,7 +127,7 @@ var controller = {
     }).then(function(result) {
 
       // respond with the task ids (mostly for debugging and testing)
-      return res.send(200, result);
+      return res.send(201, result);
 
     }).catch(function(err) {
       console.error('Could not generate or post resulset from github pr');
