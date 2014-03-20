@@ -12,6 +12,12 @@ XXX: this should be https and in the mozilla subdomain.
 var DEFAULT_TASKCLUSTER_QUEUE = 'http://queue.taskcluster.net';
 
 /**
+Default location where scheduler/graph is.
+@constant
+*/
+var DEFAULT_TASKCLUSTER_GRAPH = 'http://scheduler.taskcluster.net';
+
+/**
 Default location where task definitions can be fetched from.
 @constant
 */
@@ -28,7 +34,8 @@ function config(options) {
 
   return {
     queueUrl: options.queueUrl || DEFAULT_TASKCLUSTER_QUEUE,
-    tasksUrl: options.tasksUrl || DEFAULT_TASKCLUSTER_TASK_BUCKET
+    tasksUrl: options.tasksUrl || DEFAULT_TASKCLUSTER_TASK_BUCKET,
+    graphUrl: options.graphUrl || DEFAULT_TASKCLUSTER_GRAPH
   };
 }
 

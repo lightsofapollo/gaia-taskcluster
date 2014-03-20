@@ -4,6 +4,7 @@ var Promise = require('promise');
 var swagger = require('swagger-jack');
 var Github = require('github');
 var Queue = require('taskcluster-client/queue');
+var Graph = require('taskcluster-client/graph');
 
 var projectConfig = require('./project_config');
 
@@ -28,6 +29,8 @@ module.exports = function buildApp(config) {
 
   // taskcluster client configuration
   app.set('queue', new Queue());
+  // taskcluster graph configuration
+  app.set('graph', new Graph());
 
   // this is kind of ghetto but the idea is to start loading the project
   // configuration at startup but block any incoming requests if they

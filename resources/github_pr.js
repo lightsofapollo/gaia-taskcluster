@@ -35,7 +35,7 @@ var Promise = require('promise');
 var TreeherderGithub = require('mozilla-treeherder/github');
 var TreeherderProject = require('mozilla-treeherder/project');
 
-var githubTasks = require('../tasks/github_pr');
+var githubGraph = require('../graph/github_pr');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 
 function findProject(projects, user, repo) {
@@ -54,8 +54,16 @@ var controller = {
   post: function(req, res, next) {
     var body = req.body;
     var ghRepository = body.repository;
+    var ghPr = body.pull_request;
+    var ghAction = body.action;
 
-    if (!body.pull_request) {
+    // ack closed pull requests but don't create any resources in th or
+    // tc.
+    if (ghAction === 'closed') {
+      return res.send(200);
+    }
+
+    if (!ghPr) {
       var err = new Error('Invalid pull request data');
       err.status = 400;
       return next(err);
@@ -63,6 +71,8 @@ var controller = {
 
     // taskcluster queue
     var queue = res.app.get('queue');
+    // taskcluster graph
+    var graph = res.app.get('graph');
 
     // github client
     var github = res.app.get('github');
@@ -73,7 +83,7 @@ var controller = {
     // github params
     var user = ghRepository.owner.login;
     var repo = ghRepository.name;
-    var number = body.pull_request.number;
+    var number = ghPr.number;
 
     var project = findProject(projects, user, repo);
     if (!project) {
@@ -100,25 +110,24 @@ var controller = {
     }).then(function() {
 
       console.log('posted resultset for ' + user + '/' + repo + ' #' + number);
-      return githubTasks(req.app.get('github'), body.pull_request);
 
-    }).then(function(tasks) {
+      // fetch the raw graph from github
+      return githubGraph.fetchGraph(github, ghPr);
 
-      var promises = tasks.map(function(task) {
-        return queue.postTask(task);
-      });
+    }).then(function(projectGraph) {
 
-      return Promise.all(promises);
+      // decorate the graph with the pull request
+      return githubGraph.decorateGraph(
+        projectGraph, github, ghPr
+      ).then(
+        // then post it to taskcluster for processing
+        graph.create.bind(graph)
+      );
 
-    }).then(function(list) {
-      var taskIds = [];
-      list.forEach(function(task) {
-        console.log('Posted new task %s', task.status.taskId);
-        taskIds.push(task.status.taskId);
-      });
+    }).then(function(result) {
 
       // respond with the task ids (mostly for debugging and testing)
-      return res.send(200, { taskIds: taskIds });
+      return res.send(201, result);
 
     }).catch(function(err) {
       console.error('Could not generate or post resulset from github pr');

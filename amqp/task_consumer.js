@@ -54,6 +54,7 @@ TaskConsumer.prototype = {
   },
 
   read: function(content, message) {
+    debug('amqp message:', content, { exchange: message.fields.exchange });
     return jobFromTask(this.queue, content).then(function(job) {
       var project = this.treeherderProject(job.project || 'gaia');
       debug('job', job);

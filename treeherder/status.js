@@ -1,6 +1,7 @@
 var Factory = require('./job_factory');
 var Promise = require('promise');
 
+var debug = require('debug')('treeherder:status');
 var request = require('superagent-promise');
 
 function dateToSeconds(date) {
@@ -71,6 +72,7 @@ var StatusHandler = {
   pending: taskDecorator(function(queue, payload, task) {
     var base = this.base(payload, task);
     base.job.state = 'pending';
+    debug('mark task as pending', task, base);
     return base;
   }),
 
@@ -97,7 +99,7 @@ var StatusHandler = {
         };
       });
 
-      console.log('CREATE:', base);
+      debug('mark task as running', task, base);
       return base;
     }.bind(this));
   }),
@@ -115,6 +117,7 @@ var StatusHandler = {
       base.job.end_timestamp =
         dateToSeconds(body.statistics.finished);
 
+      debug('mark task as completed', task, base);
       return base;
     }.bind(this));
   }),
@@ -124,7 +127,7 @@ var StatusHandler = {
       var base = this.base(payload, task);
       base.job.state = 'completed';
       base.job.result = 'busted';
-
+      debug('mark task as failed', task, base);
       return base;
     }.bind(this));
 

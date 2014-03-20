@@ -1,5 +1,29 @@
 # gaia-taskcluster
 
+## Environment variables added to tasks
+
+A number of environment variables are added to each task to enable
+different workflows for both pull requests and other branches.
+
+These do _not_ override values set in the tasks if set.
+
+These are inspired by [travis-ci](http://docs.travis-ci.com/user/ci-environment/#Environment-variables)
+
+  - `CI=true`: always true
+
+  - `GH_BRANCH`: branch this task was triggered for 
+     (this is the base/target branch in a pull request not the head)
+
+  - `GH_COMMIT`: commit this task was triggered for
+     (this is the most recent commit in the head in a pull request)   
+
+  - `GH_PULL_REQUEST`: `true` when triggered by a pull request
+
+  - `GH_PULL_REQUEST_NUMBER`: the number of the given pull request 
+     (not set if this task was not triggered by a pull request)
+
+  - `GH_REPO_SLUG`: username/repo of the target repository
+
 ## Project configuration
 
 Treeherder has a per-project authentication strategy... In order to keep

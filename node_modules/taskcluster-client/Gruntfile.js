@@ -5,7 +5,9 @@ module.exports = function(grunt) {
     'config.js',
     'exchange.js',
     'queue.js',
-    'factory/task.js'
+    'graph.js',
+    'factory/task.js',
+    'factory/graph.js'
   ];
 
   // Project configuration.

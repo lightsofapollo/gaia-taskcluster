@@ -1,11 +1,11 @@
 suite('exchange', function() {
   var exchange = require('./exchange');
 
-  suite('#taskRoutingKey', function() {
+  suite('#queueRoutingKey', function() {
 
     test('defaults', function() {
       assert.equal(
-        exchange.taskRoutingKey(),
+        exchange.queueRoutingKey(),
         '*.*.*.*.*.*.#'
       );
     });
@@ -29,10 +29,20 @@ suite('exchange', function() {
       });
 
       assert.equal(
-        exchange.taskRoutingKey(object),
+        exchange.queueRoutingKey(object),
         expected.join('.')
       );
     });
+  });
+
+  test('#graphRoutingKey', function() {
+    var expected = '*.*.*.*.*.*.sch.graphid.param';
+    var result = exchange.graphRoutingKey({
+      schedulerId: 'sch',
+      taskGraphId: 'graphid',
+      taskGraphRouting: 'param'
+    });
+    assert.equal(result, expected);
   });
 });
 

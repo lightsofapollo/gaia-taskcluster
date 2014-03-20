@@ -10,29 +10,39 @@ Exchange constants and utilities for binding to queues...
 var util = require('util');
 
 /**
-queue messages for pending tasks.
 @constant
 */
 exports.QUEUE_TASK_PENDING = 'queue/v1/task-pending';
 
 /**
-queue messages for running tasks.
-@type String
 @constant
 */
 exports.QUEUE_TASK_RUNNING = 'queue/v1/task-running';
 
 /**
-queue messages for completed tasks.
 @constant
 */
 exports.QUEUE_TASK_COMPLETED = 'queue/v1/task-completed';
 
 /**
-queue messages for failed tasks.
 @constant
 */
 exports.QUEUE_TASK_FAILED = 'queue/v1/task-failed';
+
+/**
+@constant
+*/
+exports.GRAPH_RUNNING = 'scheduler/v1/task-graph-running';
+
+/**
+@constant
+*/
+exports.GRAPH_BLOCKED = 'scheduler/v1/task-graph-blocked';
+
+/**
+@constant
+*/
+exports.GRAPH_FINISHED = 'scheduler/v1/task-graph-finished';
 
 /**
 Rollup of all task related exchanges
@@ -70,7 +80,7 @@ var routingKey = exchange.taskRoutingKey({
 // routingKey => '*.*.*.aws-provisoiner.ami-xfoo.#'
 
 */
-exports.taskRoutingKey = function(options) {
+exports.queueRoutingKey = function(options) {
   options = options || {};
 
   return [
@@ -86,5 +96,20 @@ exports.taskRoutingKey = function(options) {
   }).join('.');
 };
 
-/**
-*/
+exports.graphRoutingKey = function(options) {
+  options = options || {};
+
+  return [
+   'taskId',
+   'runId',
+   'workerGroup',
+   'workerId',
+   'provisionerId',
+   'workerType',
+   'schedulerId',
+   'taskGraphId',
+   'taskGraphRouting'
+  ].map(function(param) {
+    return options[param] || (param == 'taskGraphRouting' ? '#' : '*');
+  }).join('.');
+};
