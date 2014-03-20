@@ -1,4 +1,6 @@
 suite('REST /github/pull_request', function() {
+  this.timeout('10s');
+
   var TreeherderProject = require('mozilla-treeherder/project');
   var request = require('supertest');
   var app = require('../')();

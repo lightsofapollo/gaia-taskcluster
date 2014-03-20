@@ -6,6 +6,12 @@ Creates a graph from a github pull request.
 var Promise = require('promise');
 var GraphFactory = require('taskcluster-client/factory/graph');
 
+var DEFAULT_PROVISIONER =
+  process.env.TASKCLUSTER_PROVISIONER_ID || 'aws-provisioner';
+
+var DEFAULT_WORKER_TYPE =
+  process.env.TASKCLUSTER_WORKER_TYPE || 'ami-ca7917fa';
+
 /**
 Fetch the graph (but do not decorate it) from the pull request.
 
@@ -14,7 +20,7 @@ Fetch the graph (but do not decorate it) from the pull request.
 function fetchGraph(github, pullRequest) {
   // XXX: Obviously this is a hack this will fetch from the repository
   //      directly in the future.
-  return Promise.cast(GraphFactory.create(require('./hardcoded_graph')));
+  return Promise.cast(require('./hardcoded_graph'));
 }
 
 module.exports.fetchGraph = fetchGraph;
@@ -37,7 +43,7 @@ function decorateGraph(graph, github, pullRequest) {
     GH_REPO_SLUG: pullRequest.base.repo.full_name
   };
 
-  // metadata is always overridden
+  // tag data is always overridden
   var tags = {
     commit: pullRequest.head.sha,
     repository: pullRequest.base.repo.html_url,
@@ -53,6 +59,17 @@ function decorateGraph(graph, github, pullRequest) {
     var taskEnvs = definition.payload.env = definition.payload.env || {};
     var taskTags = definition.tags = definition.tags || {};
 
+
+    /**
+    We add defaults to the provisionerId and workerType mostly so we can change
+    these in the server configuration until we have stabilized a bit more.
+    */
+    definition.provisionerId =
+      definition.provisionerId || DEFAULT_PROVISIONER;
+
+    definition.workerType =
+      definition.workerType || DEFAULT_WORKER_TYPE;
+
     var key;
     for (key in tags) {
       taskTags[key] = tags[key];
@@ -65,7 +82,12 @@ function decorateGraph(graph, github, pullRequest) {
     }
   });
 
-  return Promise.cast(graph);
+  // we need to override this in all cases so we get notifications for the
+  // individual tasks and for the overall graph progress...
+  graph.routing = process.env.TASKCLUSTER_ROUTING_KEY + '.';
+
+  // cast to promise and fill in the rest of fields with defaults if not set...
+  return Promise.cast(GraphFactory.create(graph));
 }
 
 module.exports.decorateGraph = decorateGraph;

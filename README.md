@@ -67,6 +67,12 @@ TODO: Add auto configuration script from repo (or via a UI)
     - `TASKCLUSTER_ROUTING_KEY`: routing key to use when posting tasks
       and binding to task queues.
 
+    - `TASKCLUSTER_PROVISIONER_ID`: Default provisioner id if none is
+      specified in the task.
+
+    - `TASKCLUSTER_WORKER_TYPE`: Default worker type if none is
+      specified in the task.
+
     - `GITHUB_OAUTH_TOKEN` : github oauth token to use when making
       github api calls (currently optional)
 

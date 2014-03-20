@@ -1,0 +1,38 @@
+{
+  "tasks": {
+    "lint": {
+      "task": {
+        "metadata": {
+          "owner": "jlal@mozilla.com"
+        },
+        "payload": {
+          "image": "registry.taskcluster.net/lightsofapollo/gaia-taskenv",
+          "command": [
+            "./bin/github_pr https://github.com/$GH_REPO_SLUG.git $GH_PULL_REQUEST_NUMBER make test-integration REPORTER=mocha-tbpl-reporter"
+          ]
+        },
+        "tags": {
+          "treeherderProject": "gaia",
+          "treeherderSymbol": "GI"
+        }
+      }
+    },
+    "marionette integration tests": {
+      "task": {
+        "metadata": {
+          "owner": "jlal@mozilla.com"
+        },
+        "payload": {
+          "image": "registry.taskcluster.net/lightsofapollo/gaia-taskenv",
+          "command": [
+            "./bin/github_pr https://github.com/$GH_REPO_SLUG.git $GH_PULL_REQUEST_NUMBER make hint"
+          ]
+        },
+        "tags": {
+          "treeherderProject": "gaia",
+          "treeherderSymbol": "HINT"
+        }
+      }
+    }
+  }
+}
