@@ -10,7 +10,7 @@ var DEFAULT_PROVISIONER =
   process.env.TASKCLUSTER_PROVISIONER_ID || 'aws-provisioner';
 
 var DEFAULT_WORKER_TYPE =
-  process.env.TASKCLUSTER_WORKER_TYPE || 'ami-ca7917fa';
+  process.env.TASKCLUSTER_WORKER_TYPE || 'ami-4a4e277a';
 
 /**
 Fetch the graph (but do not decorate it) from the pull request.
