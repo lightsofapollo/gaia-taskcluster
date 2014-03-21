@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "lint": {
+    "marionette integration tests": {
       "task": {
         "metadata": {
           "owner": "jlal@mozilla.com"
@@ -17,7 +17,7 @@
         }
       }
     },
-    "marionette integration tests": {
+    "lint": {
       "task": {
         "metadata": {
           "owner": "jlal@mozilla.com"
