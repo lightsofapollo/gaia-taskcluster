@@ -1,20 +1,54 @@
 suite('github', function() {
-
+  var Promise = require('promise');
+  var PromiseProxy = require('proxied-promise-object');
   var Github = require('github');
   var github = new Github({
     version: '3.0.0'
   });
+
+  var ghRepo = PromiseProxy(Promise, github.repos);
 
   var PullRequest = require('github-fixtures/pull_request');
   var Graph = require('taskcluster-client/factory/graph');
 
   var subject = require('./github_pr');
 
+  var USER = 'taskcluster';
+  var REPO = 'github-graph-example';
+
   function eachTask(graph, fn) {
     Object.keys(graph.tasks).forEach(function(name) {
       fn(graph.tasks[name], name);
     });
   }
+
+  suite('#fetchGraph', function() {
+    var pr = PullRequest.create({
+      head: {
+        user: { login: USER },
+        repo: {
+          name: REPO
+        }
+      }
+    });
+
+    var content;
+    setup(function() {
+      return ghRepo.getContent({
+        user: USER,
+        repo: REPO,
+        path: 'taskgraph.json'
+      }).then(function(values) {
+        content = JSON.parse(new Buffer(values.content, 'base64'));
+      });
+    });
+
+    test('fetches content from github via pr', function() {
+      return subject.fetchGraph(github, pr).then(function(graph) {
+        assert.deepEqual(graph, content);
+      });
+    });
+  });
 
   suite('#decorateGraph', function() {
     var pr = PullRequest.create();

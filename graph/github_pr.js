@@ -6,6 +6,8 @@ Creates a graph from a github pull request.
 var Promise = require('promise');
 var GraphFactory = require('taskcluster-client/factory/graph');
 
+var TASKGRAPH_PATH = 'taskgraph.json';
+
 var DEFAULT_PROVISIONER =
   process.env.TASKCLUSTER_PROVISIONER_ID || 'aws-provisioner';
 
@@ -18,9 +20,17 @@ Fetch the graph (but do not decorate it) from the pull request.
 @return {Promise<Object>} raw graph as defined in the repository.
 */
 function fetchGraph(github, pullRequest) {
-  // XXX: Obviously this is a hack this will fetch from the repository
-  //      directly in the future.
-  return Promise.cast(require('./hardcoded_graph'));
+  var content = Promise.denodeify(
+    github.repos.getContent.bind(github.repos)
+  );
+
+  return content({
+    user: pullRequest.head.user.login,
+    repo: pullRequest.head.repo.name,
+    path: TASKGRAPH_PATH
+  }).then(function(contents) {
+    return JSON.parse(new Buffer(contents.content, 'base64'));
+  });
 }
 
 module.exports.fetchGraph = fetchGraph;
