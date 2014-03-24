@@ -99,6 +99,7 @@ var controller = {
       user: user,
       number: number
     }).then(function(resultset) {
+      resultset.revision_hash = githubGraph.pullRequestResultsetId(ghPr);
       // submit the resultset to treeherder
       var thProject = new TreeherderProject(project.name, {
         consumerKey: project.consumerKey,
@@ -119,10 +120,9 @@ var controller = {
       // decorate the graph with the pull request
       return githubGraph.decorateGraph(
         projectGraph, github, ghPr
-      ).then(
-        // then post it to taskcluster for processing
-        graph.create.bind(graph)
-      );
+      ).then(function(decoratedGraph) {
+        return graph.create(decoratedGraph);
+      });
 
     }).then(function(result) {
 

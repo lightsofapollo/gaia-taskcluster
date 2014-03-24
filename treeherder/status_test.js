@@ -19,13 +19,9 @@ suite('status handler', function() {
     queue = new Queue();
   });
 
-  teardown(function() {
-    nock.restore();
-  });
-
   var task;
   setup(function() {
-    require('../test/nock/taskcluster_task');
+    require('../test/nock/taskcluster_task')();
     return queue.getTask(TASK_ID).then(function(body) {
       task = body;
     });
@@ -51,7 +47,7 @@ suite('status handler', function() {
     };
 
     test('pending result', function() {
-      require('../test/nock/taskcluster_pending_task');
+      require('../test/nock/taskcluster_pending_task')();
 
       var submitTimestamp = new Date(fixture.status.created);
       submitTimestamp = Math.floor(submitTimestamp.valueOf() / 1000);
@@ -97,7 +93,7 @@ suite('status handler', function() {
     };
 
     test('running task', function() {
-      require('../test/nock/taskcluster_running_task');
+      require('../test/nock/taskcluster_running_task')();
 
       return Status.running(queue, fixture).then(function(result) {
         var job = result.job;
@@ -142,7 +138,7 @@ suite('status handler', function() {
     };
 
     test('completed task success', function() {
-      require('../test/nock/taskcluster_completed_task');
+      require('../test/nock/taskcluster_completed_task')();
 
       return Status.completed(queue, fixture).then(function(result) {
         var job = result.job;
@@ -183,7 +179,7 @@ suite('status handler', function() {
     };
 
     test('failed task', function() {
-      require('../test/nock/taskcluster_completed_task');
+      require('../test/nock/taskcluster_completed_task')();
       return Status.failed(queue, fixture).then(function(result) {
         var job = result.job;
         assert.equal(job.state, 'completed');

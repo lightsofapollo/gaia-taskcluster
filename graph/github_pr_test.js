@@ -1,14 +1,21 @@
 suite('github', function() {
-
+  var nock = require('nock');
+  var Promise = require('promise');
+  var PromiseProxy = require('proxied-promise-object');
   var Github = require('github');
   var github = new Github({
-    version: '3.0.0'
+    version: '3.0.0',
   });
+
+  var ghRepo = PromiseProxy(Promise, github.repos);
 
   var PullRequest = require('github-fixtures/pull_request');
   var Graph = require('taskcluster-client/factory/graph');
 
   var subject = require('./github_pr');
+
+  var USER = 'taskcluster';
+  var REPO = 'github-graph-example';
 
   function eachTask(graph, fn) {
     Object.keys(graph.tasks).forEach(function(name) {
@@ -16,11 +23,82 @@ suite('github', function() {
     });
   }
 
+  suiteSetup(function() {
+    nock.disableNetConnect();
+  });
+
+  suiteTeardown(function() {
+    nock.enableNetConnect();
+  });
+
+  suite('#fetchOwnerFromLogin', function() {
+    test('email address', function() {
+      require('../test/nock/github_user_email')();
+      var login = 'lightsofapollo';
+      return subject.fetchOwnerFromLogin(
+        github,
+        login
+      ).then(function(email) {
+        assert.ok(email, 'has email');
+        assert.ok(
+          email.indexOf('taskcluster.net') === -1, 'is not a generated email'
+        );
+      });
+    });
+
+    test('no email address', function() {
+      require('../test/nock/github_user_no_email')();
+      var login = 'lightsofapollo-staging';
+      return subject.fetchOwnerFromLogin(
+        github,
+        login
+      ).then(function(email) {
+        assert.equal(login + '@github.taskcluster.net', email);
+      });
+    });
+  });
+
+  suite('#fetchGraph', function() {
+    var pr = PullRequest.create({
+      head: {
+        user: { login: USER },
+        repo: {
+          name: REPO
+        }
+      }
+    });
+
+    var content;
+    setup(function() {
+      require('../test/nock/github_fetch_graph')();
+      return ghRepo.getContent({
+        user: USER,
+        repo: REPO,
+        path: 'taskgraph.json'
+      }).then(function(values) {
+        content = JSON.parse(new Buffer(values.content, 'base64'));
+      });
+    });
+
+    test('fetches content from github via pr', function() {
+      return subject.fetchGraph(github, pr).then(function(graph) {
+        assert.deepEqual(graph, content);
+      });
+    });
+  });
+
   suite('#decorateGraph', function() {
-    var pr = PullRequest.create();
+    var pr = PullRequest.create({
+      head: {
+        user: {
+          login: 'lightsofapollo'
+        }
+      }
+    });
 
     var decorated;
     setup(function() {
+      require('../test/nock/github_user_email')();
       return subject.decorateGraph(
         Graph.create({
           tasks: {
@@ -85,7 +163,10 @@ suite('github', function() {
     test('treeherder tag', function() {
       eachTask(decorated, function(task) {
         var tags = task.task.tags;
-        assert.equal(tags.treeherderResultset, pr.html_url);
+        assert.equal(
+          subject.pullRequestResultsetId(pr),
+          tags.treeherderResultset
+        );
       });
     });
   });

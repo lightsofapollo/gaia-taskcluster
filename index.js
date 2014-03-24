@@ -38,8 +38,11 @@ module.exports = function buildApp(config) {
   var projects = projectConfig(process.env.TREEHEDER_PROJECT_CONFIG_URI);
   var projectsResolved = false;
   projects = projects.then(function(config) {
-    projectsResolved = true;
     app.set('projects', config);
+    projectsResolved = true;
+  }).catch(function() {
+    console.error('Fatal Error: Failed to load configuration for projects');
+    process.exit(1);
   });
 
   app.use(function(req, res, next) {
