@@ -96,3 +96,31 @@ state (continuous deployment via travis-ci). Current staging url is: http://gaia
 All dependencies are packaged in the node_modules folder but you may
 need to run `npm rebuild` if you encounter errors with the ngrok
 module (it downloads platform specific code).
+
+### Tests
+
+Commands:
+  
+  - All tests: `npm run-script test-all`
+  - Unit tests: (these don't require credentials): `npm run-script
+  test-unit`
+  - Integration tests: (these require credentials): `npm run-script
+    test-integration`
+
+Some tests (particularly those under resources) are written to hit real
+servers without mocking or any kind of other abstraction and are
+intended to be completely end-to-end (hooks, pull requests, everything).
+This means there are some extra steps required to setup the tests.
+
+  1. copy projects.json.tpl to projects.json.tpl (or set TREEHEDER_PROJECT_CONFIG_URI) and fill in the credentials.
+
+  2. Set GH_TESTING_TOKEN to a real github token for a real "bot" user.
+
+  3. Some tests require the bot user to actually have credentials to the
+     [example graph](https://github.com/taskcluster/github-graph-example) repository. This is the "bots" team. You can ping :lightsofapollo (or any other owner) for help with this if you need to run these tests locally.
+
+NOTE: If your running treeherder locally you can also set the `TREEHERDER_URL` environment variable to override the location of treeherder.
+
+TODO: Ideally to setup the integration testing environment we could
+build a docker container which could be reused (and saved) locally
+without the need to remember custom environment variables.

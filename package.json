@@ -4,7 +4,10 @@
   "description": "gaia-taskcluster",
   "main": "index.js",
   "scripts": {
-    "test": "make test"
+    "test": "./test/unit.sh",
+    "test-unit": "./test/unit.sh",
+    "test-integration": "./test/integration.sh",
+    "test-all": "./test/all.sh"
   },
   "repository": {
     "type": "git",

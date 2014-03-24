@@ -23,21 +23,12 @@ suite('github', function() {
     });
   }
 
-  // nock.recorder.rec();
-  suiteSetup(function() {
-    //nock.cleanAll();
-  });
-
   suiteSetup(function() {
     nock.disableNetConnect();
   });
 
   suiteTeardown(function() {
     nock.enableNetConnect();
-  });
-
-  teardown(function() {
-    //nock.restore();
   });
 
   suite('#fetchOwnerFromLogin', function() {

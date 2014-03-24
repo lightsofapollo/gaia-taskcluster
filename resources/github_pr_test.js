@@ -8,11 +8,11 @@ suite('github', function() {
   // github target repository...
   var GH_USER = 'taskcluster';
   var GH_REPO = 'github-graph-example';
-  var GH_TOKEN =
-    process.env.GH_TESTING_TOKEN || process.env.GITHUB_OAUTH_TOKEN;
+  var GH_TOKEN = process.env.GITHUB_OAUTH_TOKEN;
 
   var Github = require('github-api');
 
+  var nock = require('nock');
   var app = require('../');
   var ngrokify = require('ngrok-my-server');
   var githubPr = require('testing-github/pullrequest');
@@ -20,8 +20,14 @@ suite('github', function() {
   var gh; // generic github-api interface
   var ghRepo; // github repository interface
 
+  if (!GH_TOKEN) {
+    test.skip(
+      'This suite is a full integration test and requires GITHUB_OAUTH_TOKEN'
+    );
+    return;
+  }
+
   suiteSetup(function() {
-    assert(GH_TOKEN, 'github token is required');
     gh = new Github({ token: GH_TOKEN });
     ghRepo = PromiseProxy(Promise, gh.getRepo(GH_USER, GH_REPO));
   });

@@ -10,7 +10,7 @@ Override the CONFIG_URI to the test configuration unless its set.
 */
 process.env.TREEHEDER_PROJECT_CONFIG_URI =
   process.env.TREEHEDER_PROJECT_CONFIG_URI ||
-  __dirname + '/projects.json';
+  __dirname + '/../projects.json';
 
 /**
 Set s3 credentials if missing to something bogus.
