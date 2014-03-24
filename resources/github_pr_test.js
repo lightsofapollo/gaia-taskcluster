@@ -45,7 +45,6 @@ suite('github', function() {
   function waitForServerResponse(server, path, status) {
     return new Promise(function(accept, reject) {
       function request(req, res) {
-        console.log(req.path, path);
         if (req.path !== path) return;
         res.once('finish', response.bind(this, req, res));
       }
@@ -95,7 +94,6 @@ suite('github', function() {
         body: 'pr test',
         files: [{ commit: 'woot', path: 'file.txt', content: 'yay' }]
       }).then(function(_pr) {
-        console.log('resolve');
         pr = _pr;
       });
 
@@ -103,7 +101,6 @@ suite('github', function() {
       var serverPromise =
         waitForServerResponse(server, '/github/pull_request', 201).
         then(function(pair) {
-          console.log('resolve 2');
           req = pair[0];
           res = pair[1];
         });
