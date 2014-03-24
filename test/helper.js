@@ -1,4 +1,3 @@
-require('mocha-as-promised')();
 global.assert = require('assert');
 
 process.env.TASKCLUSTER_ROUTING_KEY =
