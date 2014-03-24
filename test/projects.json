@@ -5,5 +5,12 @@
     "consumerSecret": "...",
     "repo": "gaia",
     "user": "mozilla-b2g"
+  },
+  {
+    "name": "taskcluster-integration",
+    "consumerSecret": "....",
+    "consumerKey": "....",
+    "user": "taskcluster",
+    "repo": "github-graph-example"
   }
 ]

@@ -99,6 +99,7 @@ var controller = {
       user: user,
       number: number
     }).then(function(resultset) {
+      resultset.revision_hash = githubGraph.pullRequestResultsetId(ghPr);
       // submit the resultset to treeherder
       var thProject = new TreeherderProject(project.name, {
         consumerKey: project.consumerKey,
@@ -131,7 +132,7 @@ var controller = {
 
     }).catch(function(err) {
       console.error('Could not generate or post resulset from github pr');
-      console.error(err);
+      console.error(err.stack);
       var err = new Error(
         'failed to generate resultset ' + user + '/' + repo + ' #' + number
       );

@@ -6,7 +6,7 @@ suite('REST /github/pull_request', function() {
   var app = require('../')();
   var nock = require('nock');
 
-  // nock.recorder.rec();
+  //nock.recorder.rec();
 
   suite('POST - ignoring closed pull requests', function() {
     // actual github pull request event taken from the webhook UI

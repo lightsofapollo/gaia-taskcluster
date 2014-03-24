@@ -14,6 +14,22 @@ var DEFAULT_PROVISIONER =
 var DEFAULT_WORKER_TYPE =
   process.env.TASKCLUSTER_WORKER_TYPE || 'ami-f44128c4';
 
+function pullRequestResultsetId(pr) {
+  var id =
+    // prefix so pull requests are distinct from other things
+    'pr-' +
+    // pull request number is unique per project
+    pr.number +
+    '-' +
+    // repository is is unique globally on github and will stay the same
+    // even if the repository is renamed
+    pr.base.repo.id;
+
+  return id;
+}
+
+exports.pullRequestResultsetId = pullRequestResultsetId;
+
 /**
 Fetch the graph (but do not decorate it) from the pull request.
 
@@ -53,13 +69,14 @@ function decorateGraph(graph, github, pullRequest) {
     GH_REPO_SLUG: pullRequest.base.repo.full_name
   };
 
+
   // tag data is always overridden
   var tags = {
     commit: pullRequest.head.sha,
     repository: pullRequest.base.repo.html_url,
     pullRequest: pullRequest.html_url,
     githubUsername: pullRequest.head.user.login,
-    treeherderResultset: pullRequest.html_url
+    treeherderResultset: pullRequestResultsetId(pullRequest)
   };
 
   // iterate through all the tasks and decorate them with the details.

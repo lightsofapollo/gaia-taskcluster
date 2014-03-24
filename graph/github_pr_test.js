@@ -119,7 +119,10 @@ suite('github', function() {
     test('treeherder tag', function() {
       eachTask(decorated, function(task) {
         var tags = task.task.tags;
-        assert.equal(tags.treeherderResultset, pr.html_url);
+        assert.equal(
+          subject.pullRequestResultsetId(pr),
+          tags.treeherderResultset
+        );
       });
     });
   });
