@@ -90,3 +90,9 @@ TODO: Add auto configuration script from repo (or via a UI)
 
 Every commit in master will be pushed to heroku if master is in a green
 state (continuous deployment via travis-ci). Current staging url is: http://gaia-taskcluster.herokuapp.com/
+
+## Development
+
+All dependencies are packaged in the node_modules folder but you may
+need to run `npm rebuild` if you encounter errors with the ngrok
+module (it downloads platform specific code).
