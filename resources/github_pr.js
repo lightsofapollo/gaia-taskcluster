@@ -120,10 +120,9 @@ var controller = {
       // decorate the graph with the pull request
       return githubGraph.decorateGraph(
         projectGraph, github, ghPr
-      ).then(
-        // then post it to taskcluster for processing
-        graph.create.bind(graph)
-      );
+      ).then(function(decoratedGraph) {
+        return graph.create(decoratedGraph);
+      });
 
     }).then(function(result) {
 
@@ -132,7 +131,7 @@ var controller = {
 
     }).catch(function(err) {
       console.error('Could not generate or post resulset from github pr');
-      console.error(err.stack);
+      console.error(err);
       var err = new Error(
         'failed to generate resultset ' + user + '/' + repo + ' #' + number
       );

@@ -30,6 +30,25 @@ function pullRequestResultsetId(pr) {
 
 exports.pullRequestResultsetId = pullRequestResultsetId;
 
+var FAKE_EMAIL_DOMAIN = 'github.taskcluster.net';
+
+/**
+Fetch the github email address based on the login of the user.
+@param {Object} github api interface.
+@param {String} login username for github.
+*/
+function fetchOwnerFromLogin(github, login) {
+  var getUser = Promise.denodeify(github.user.getFrom.bind(github.user));
+  return getUser({ user: login }).then(function(user) {
+    // if we have an email immediately return it
+    if (user.email) return user.email;
+    // otherwise construct the ghetto fake email for takscluster
+    return user.login + '@' + FAKE_EMAIL_DOMAIN;
+  });
+}
+
+module.exports.fetchOwnerFromLogin = fetchOwnerFromLogin;
+
 /**
 Fetch the graph (but do not decorate it) from the pull request.
 
@@ -69,6 +88,8 @@ function decorateGraph(graph, github, pullRequest) {
     GH_REPO_SLUG: pullRequest.base.repo.full_name
   };
 
+  // metadata will override any values in the template.
+  var meta = {};
 
   // tag data is always overridden
   var tags = {
@@ -79,42 +100,54 @@ function decorateGraph(graph, github, pullRequest) {
     treeherderResultset: pullRequestResultsetId(pullRequest)
   };
 
-  // iterate through all the tasks and decorate them with the details.
-  Object.keys(graph.tasks).forEach(function(name) {
-    var task = graph.tasks[name];
-    var definition = task.task;
-    var taskEnvs = definition.payload.env = definition.payload.env || {};
-    var taskTags = definition.tags = definition.tags || {};
+  return fetchOwnerFromLogin(
+    github,
+    pullRequest.head.user.login
+  ).then(function(owner) {
+    // owner email based on the github data available.
+    meta.owner = owner;
 
+    // iterate through all the tasks and decorate them with the details.
+    Object.keys(graph.tasks).forEach(function(name) {
+      var task = graph.tasks[name];
+      var definition = task.task;
+      var taskEnvs = definition.payload.env = definition.payload.env || {};
+      var taskTags = definition.tags = definition.tags || {};
+      var taskMeta = definition.metadata = definition.metadata || {};
 
-    /**
-    We add defaults to the provisionerId and workerType mostly so we can change
-    these in the server configuration until we have stabilized a bit more.
-    */
-    definition.provisionerId =
-      definition.provisionerId || DEFAULT_PROVISIONER;
+      /**
+      We add defaults to the provisionerId and workerType mostly so we can change
+      these in the server configuration until we have stabilized a bit more.
+      */
+      definition.provisionerId =
+        definition.provisionerId || DEFAULT_PROVISIONER;
 
-    definition.workerType =
-      definition.workerType || DEFAULT_WORKER_TYPE;
+      definition.workerType =
+        definition.workerType || DEFAULT_WORKER_TYPE;
 
-    var key;
-    for (key in tags) {
-      taskTags[key] = tags[key];
-    }
-
-    for (key in envs) {
-      if (!(key in taskEnvs)) {
-        taskEnvs[key] = envs[key];
+      var key;
+      for (key in tags) {
+        taskTags[key] = tags[key];
       }
-    }
+
+      for (key in meta) {
+        taskMeta[key] = meta[key];
+      }
+
+      for (key in envs) {
+        if (!(key in taskEnvs)) {
+          taskEnvs[key] = envs[key];
+        }
+      }
+    });
+
+    // we need to override this in all cases so we get notifications for the
+    // individual tasks and for the overall graph progress...
+    graph.routing = process.env.TASKCLUSTER_ROUTING_KEY + '.';
+
+    // cast to promise and fill in the rest of fields with defaults if not set...
+    return Promise.cast(GraphFactory.create(graph));
   });
-
-  // we need to override this in all cases so we get notifications for the
-  // individual tasks and for the overall graph progress...
-  graph.routing = process.env.TASKCLUSTER_ROUTING_KEY + '.';
-
-  // cast to promise and fill in the rest of fields with defaults if not set...
-  return Promise.cast(GraphFactory.create(graph));
 }
 
 module.exports.decorateGraph = decorateGraph;

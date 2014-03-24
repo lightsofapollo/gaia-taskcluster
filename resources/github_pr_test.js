@@ -1,4 +1,6 @@
 suite('github', function() {
+  this.timeout('100s');
+
   var Promise = require('promise');
   var PromiseProxy = require('proxied-promise-object');
   var TreeherderProject = require('mozilla-treeherder/project');

@@ -1,9 +1,10 @@
 suite('github', function() {
+  var nock = require('nock');
   var Promise = require('promise');
   var PromiseProxy = require('proxied-promise-object');
   var Github = require('github');
   var github = new Github({
-    version: '3.0.0'
+    version: '3.0.0',
   });
 
   var ghRepo = PromiseProxy(Promise, github.repos);
@@ -22,6 +23,50 @@ suite('github', function() {
     });
   }
 
+  // nock.recorder.rec();
+  suiteSetup(function() {
+    //nock.cleanAll();
+  });
+
+  suiteSetup(function() {
+    nock.disableNetConnect();
+  });
+
+  suiteTeardown(function() {
+    nock.enableNetConnect();
+  });
+
+  teardown(function() {
+    //nock.restore();
+  });
+
+  suite('#fetchOwnerFromLogin', function() {
+    test('email address', function() {
+      require('../test/nock/github_user_email')();
+      var login = 'lightsofapollo';
+      return subject.fetchOwnerFromLogin(
+        github,
+        login
+      ).then(function(email) {
+        assert.ok(email, 'has email');
+        assert.ok(
+          email.indexOf('taskcluster.net') === -1, 'is not a generated email'
+        );
+      });
+    });
+
+    test('no email address', function() {
+      require('../test/nock/github_user_no_email')();
+      var login = 'lightsofapollo-staging';
+      return subject.fetchOwnerFromLogin(
+        github,
+        login
+      ).then(function(email) {
+        assert.equal(login + '@github.taskcluster.net', email);
+      });
+    });
+  });
+
   suite('#fetchGraph', function() {
     var pr = PullRequest.create({
       head: {
@@ -34,6 +79,7 @@ suite('github', function() {
 
     var content;
     setup(function() {
+      require('../test/nock/github_fetch_graph')();
       return ghRepo.getContent({
         user: USER,
         repo: REPO,
@@ -51,10 +97,17 @@ suite('github', function() {
   });
 
   suite('#decorateGraph', function() {
-    var pr = PullRequest.create();
+    var pr = PullRequest.create({
+      head: {
+        user: {
+          login: 'lightsofapollo'
+        }
+      }
+    });
 
     var decorated;
     setup(function() {
+      require('../test/nock/github_user_email')();
       return subject.decorateGraph(
         Graph.create({
           tasks: {
