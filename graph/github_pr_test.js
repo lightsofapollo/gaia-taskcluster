@@ -61,6 +61,7 @@ suite('github', function() {
   suite('#fetchGraph', function() {
     var pr = PullRequest.create({
       head: {
+        ref: 'testing',
         user: { login: USER },
         repo: {
           name: REPO

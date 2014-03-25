@@ -69,7 +69,8 @@ function fetchGraph(github, pullRequest) {
   return content({
     user: pullRequest.head.user.login,
     repo: pullRequest.head.repo.name,
-    path: TASKGRAPH_PATH
+    path: TASKGRAPH_PATH,
+    ref: pullRequest.head.ref
   }).then(function(contents) {
     debug('loaded graph from repository');
     return JSON.parse(new Buffer(contents.content, 'base64'));
