@@ -71,6 +71,7 @@ function fetchGraph(github, pullRequest) {
     repo: pullRequest.head.repo.name,
     path: TASKGRAPH_PATH
   }).then(function(contents) {
+    debug('loaded graph from repository');
     return JSON.parse(new Buffer(contents.content, 'base64'));
   });
 }
@@ -107,6 +108,7 @@ function decorateGraph(graph, github, pullRequest) {
     treeherderResultset: pullRequestResultsetId(pullRequest)
   };
 
+  debug('Fetching owner from login', pullRequest.head.user.login);
   return fetchOwnerFromLogin(
     github,
     pullRequest.head.user.login
