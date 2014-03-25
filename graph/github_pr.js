@@ -5,6 +5,7 @@ Creates a graph from a github pull request.
 */
 var Promise = require('promise');
 var GraphFactory = require('taskcluster-client/factory/graph');
+var debug = require('debug')('github-taskcluster:graph:github_pr');
 
 var TASKGRAPH_PATH = 'taskgraph.json';
 
@@ -55,6 +56,12 @@ Fetch the graph (but do not decorate it) from the pull request.
 @return {Promise<Object>} raw graph as defined in the repository.
 */
 function fetchGraph(github, pullRequest) {
+  debug(
+    'Fetching graph from repository',
+    pullRequest.head.user.login,
+    pullRequest.head.repo.name
+  );
+
   var content = Promise.denodeify(
     github.repos.getContent.bind(github.repos)
   );
