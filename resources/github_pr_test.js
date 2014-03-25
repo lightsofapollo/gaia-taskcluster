@@ -10,13 +10,19 @@ suite('github', function() {
   var GH_REPO = 'github-graph-example';
   var GH_TOKEN = process.env.GITHUB_OAUTH_TOKEN;
 
+  var AzureTable = require('azure-table-node');
   var Github = require('github-api');
 
   var nock = require('nock');
+  var fs = require('fs');
   var app = require('../');
   var ngrokify = require('ngrok-my-server');
+  var recordJSON = require('../test/response_body_recorder');
+  var waitForResponse = require('../test/wait_for_response');
   var githubPr = require('testing-github/pullrequest');
+  var githubFork = require('testing-github/fork');
   var githubGraph = require('../graph/github_pr');
+  var queryString = require('querystring');
   var gh; // generic github-api interface
   var ghRepo; // github repository interface
 
@@ -27,51 +33,32 @@ suite('github', function() {
     return;
   }
 
-  suiteSetup(function() {
-    gh = new Github({ token: GH_TOKEN });
-    ghRepo = PromiseProxy(Promise, gh.getRepo(GH_USER, GH_REPO));
-  });
-
   // start server and expose a public ip address...
+  var http = require('http');
   var url;
   var server;
   suiteSetup(function() {
-    server = app().listen(0);
-
+    // setup our http server to record outgoing json responses
+    server = http.createServer(recordJSON).listen(0);
+    // initialize our express app code
+    server.on('request', app());
+    // then make it public
     return ngrokify(server).then(function(_url) {
       url = _url;
     });
   });
 
-  /**
-  XXX: This should be it's own module
-
-  @param {String} path for the incoming http request.
-  @param {Number} status to wait for.
-  @return Promise<Array[HttpRequest,HttpResponse]>
-  */
-  function waitForServerResponse(server, path, status) {
-    return new Promise(function(accept, reject) {
-      function request(req, res) {
-        if (req.path !== path) return;
-        res.once('finish', response.bind(this, req, res));
-      }
-
-      function response(req, res) {
-        if (res.statusCode == status) {
-          // the promise can only resolve once but be a good person...
-          server.removeListener('request', request);
-          accept([req, res]);
-        }
-      }
-
-      server.on('request', request);
+  // idempotent fork
+  suiteSetup(function() {
+    gh = new Github({ token: GH_TOKEN });
+    return githubFork(gh, GH_USER, GH_REPO).then(function(_ghRepo) {
+      ghRepo = _ghRepo;
     });
-  }
+  });
 
   // add some hooks to the repository...
   var hookId;
-  suiteSetup(function() {
+  suiteSetup(function createHook() {
     // XXX: This should be part of the overall application rather then
     // hardcoded.
     return ghRepo.createHook({
@@ -87,11 +74,11 @@ suite('github', function() {
     });
   });
 
-  suiteTeardown(function() {
+  suiteTeardown(function deleteHook() {
     return ghRepo.deleteHook(hookId);
   });
 
-  suite('successfully issue a pull request with a graph', function() {
+  suite('newly added graph', function() {
     var pr, req, res;
     suiteSetup(function() {
       // issue the pull request
@@ -100,14 +87,22 @@ suite('github', function() {
         user: GH_USER,
         title: 'Testing a pull request',
         body: 'pr test',
-        files: [{ commit: 'woot', path: 'file.txt', content: 'yay' }]
+        branch: 'plain',
+        files: [{
+          commit: 'graph',
+          path: 'taskgraph.json',
+          content: fs.readFileSync(
+            __dirname + '/../test/fixtures/example_graph.json',
+            'utf8'
+          )
+        }]
       }).then(function(_pr) {
         pr = _pr;
       });
 
       // wait for the server to respond
       var serverPromise =
-        waitForServerResponse(server, '/github/pull_request', 201).
+        waitForResponse(server, '/github/pull_request', 201).
         then(function(pair) {
           req = pair[0];
           res = pair[1];
@@ -118,6 +113,37 @@ suite('github', function() {
 
     suiteTeardown(function() {
       return pr.destroy();
+    });
+
+    test('graph posted to taskcluster', function() {
+      var expectedGraph = require('../test/fixtures/example_graph');
+      var expectedLabels = Object.keys(expectedGraph.tasks);
+
+      var graph = res.app.get('graph');
+      return graph.azureTable().then(function(creds) {
+        var graphId = res.body.status.taskGraphId;
+        var client = AzureTable.createClient({
+          accountUrl: 'https://' + creds.accountName + '.table.core.windows.net/',
+          accountName: creds.accountName,
+          // yes sas must be a string here this terribleness is correct
+          sas: queryString.stringify(creds.sharedSignature)
+        });
+
+        var query = Promise.denodeify(client.queryEntities.bind(client));
+        return query(creds.taskGraphTable, {
+          query: AzureTable.Query.create('PartitionKey', '==', graphId),
+          limitTo: 20
+        }).then(function(data) {
+          assert.ok(data.length > 0, 'submitted graph');
+          var labels = [];
+
+          data.forEach(function(row) {
+            if (row.label) labels.push(row.label);
+          });
+
+          assert.deepEqual(expectedLabels, labels);
+        });
+      });
     });
 
     test('project creates resultset', function() {
