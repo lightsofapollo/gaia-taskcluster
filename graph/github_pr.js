@@ -66,12 +66,16 @@ function fetchGraph(github, pullRequest) {
     github.repos.getContent.bind(github.repos)
   );
 
-  return content({
-    user: pullRequest.head.user.login,
-    repo: pullRequest.head.repo.name,
+  var contentRequest = {
+    user: pullRequest.base.user.login,
+    repo: pullRequest.base.repo.name,
     path: TASKGRAPH_PATH,
-    ref: pullRequest.head.ref
-  }).then(function(contents) {
+    ref: 'pull/' + pullRequest.number + '/merge'
+  };
+
+  debug('requesting graph content with', contentRequest);
+
+  return content(contentRequest).then(function(contents) {
     debug('loaded graph from repository');
     return JSON.parse(new Buffer(contents.content, 'base64'));
   });
