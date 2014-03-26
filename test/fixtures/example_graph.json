@@ -1,0 +1,23 @@
+{
+  "tasks": {
+    "test_local_graph": {
+      "task": {
+        "metadata": {
+          "name": "Local example graph test",
+          "owner": "jlal@mozilla.com"
+        },
+        "payload": {
+          "image": "ubuntu",
+          "command": [
+            "ls"
+          ]
+        },
+        "tags": {
+          "treeherderProject": "taskcluster-integration",
+          "treeherderSymbol": "TCT"
+        }
+      }
+    }
+  }
+}
+

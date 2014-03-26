@@ -5,6 +5,7 @@ Creates a graph from a github pull request.
 */
 var Promise = require('promise');
 var GraphFactory = require('taskcluster-client/factory/graph');
+var debug = require('debug')('github-taskcluster:graph:github_pr');
 
 var TASKGRAPH_PATH = 'taskgraph.json';
 
@@ -55,15 +56,27 @@ Fetch the graph (but do not decorate it) from the pull request.
 @return {Promise<Object>} raw graph as defined in the repository.
 */
 function fetchGraph(github, pullRequest) {
+  debug(
+    'Fetching graph from repository',
+    pullRequest.head.user.login,
+    pullRequest.head.repo.name
+  );
+
   var content = Promise.denodeify(
     github.repos.getContent.bind(github.repos)
   );
 
-  return content({
-    user: pullRequest.head.user.login,
-    repo: pullRequest.head.repo.name,
-    path: TASKGRAPH_PATH
-  }).then(function(contents) {
+  var contentRequest = {
+    user: pullRequest.base.user.login,
+    repo: pullRequest.base.repo.name,
+    path: TASKGRAPH_PATH,
+    ref: 'pull/' + pullRequest.number + '/merge'
+  };
+
+  debug('requesting graph content with', contentRequest);
+
+  return content(contentRequest).then(function(contents) {
+    debug('loaded graph from repository');
     return JSON.parse(new Buffer(contents.content, 'base64'));
   });
 }
@@ -100,6 +113,7 @@ function decorateGraph(graph, github, pullRequest) {
     treeherderResultset: pullRequestResultsetId(pullRequest)
   };
 
+  debug('Fetching owner from login', pullRequest.head.user.login);
   return fetchOwnerFromLogin(
     github,
     pullRequest.head.user.login
