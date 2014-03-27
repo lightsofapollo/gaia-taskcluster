@@ -74,7 +74,7 @@ var controller = {
     var number = ghPr.number;
 
     var project;
-    return projects.findProjectByRepo(
+    return projects.findByRepo(
       user,
       repo,
       'pull request'
@@ -105,19 +105,10 @@ var controller = {
       return thProject.postResultset([resultset]);
     }).then(function() {
 
-      console.log('posted resultset for ' + user + '/' + repo + ' #' + number);
-
-      // fetch the raw graph from github
-      return githubGraph.fetchGraph(github, ghPr);
-
-    }).then(function(projectGraph) {
-
-      // decorate the graph with the pull request
-      return githubGraph.decorateGraph(
-        projectGraph, github, ghPr
-      ).then(function(decoratedGraph) {
-        return graph.create(decoratedGraph);
-      });
+      // build the graph and send it off...
+      return githubGraph.buildGraph(github, ghPr).then(
+        graph.create.bind(graph)
+      );
 
     }).then(function(result) {
 

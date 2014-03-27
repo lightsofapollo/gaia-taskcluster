@@ -30,11 +30,32 @@ function Project(source) {
 Project.prototype = {
 
   /**
+  XXX: This method should only be used in tests
+
+  Resets internal data cache.
+  */
+  resetCache: function() {
+    this._data = undefined;
+  },
+
+  /**
+  XXX: This is just for testing but could be used when we have a real UI.
+
+  Add a project to the store.
+
+  @param {Object} project to add.
+  */
+  add: decorateWithConfig(function(data, project) {
+    data.push(project);
+    return project;
+  }),
+
+  /**
   Find a project by it's repository
 
   @param {Object} data for configuration.
   */
-  findProjectByRepo: decorateWithConfig(function(data, user, repo, branch) {
+  findByRepo: decorateWithConfig(function(data, user, repo, branch) {
     debug('Find project', {
       user: user,
       repo: repo,

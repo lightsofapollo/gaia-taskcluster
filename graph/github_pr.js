@@ -165,3 +165,11 @@ function decorateGraph(graph, github, pullRequest) {
 }
 
 module.exports.decorateGraph = decorateGraph;
+
+function buildGraph(github, pullRequest) {
+  return fetchGraph(github, pullRequest).then(function(graph) {
+    return decorateGraph(graph, github, pullRequest);
+  });
+}
+
+module.exports.buildGraph = buildGraph;
