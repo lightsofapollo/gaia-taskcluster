@@ -38,18 +38,6 @@ var TreeherderProject = require('mozilla-treeherder/project');
 var githubGraph = require('../graph/github_pr');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 
-function findProject(projects, user, repo) {
-  var i = 0;
-  var len = projects.length;
-
-  for (; i < len; i++) {
-    var proj = projects[i];
-    if (proj.user === user && proj.repo === repo) {
-      return proj;
-    }
-  }
-}
-
 var controller = {
   post: function(req, res, next) {
     var body = req.body;
@@ -85,19 +73,26 @@ var controller = {
     var repo = ghRepository.name;
     var number = ghPr.number;
 
-    var project = findProject(projects, user, repo);
-    if (!project) {
-      var err = new Error('Cannot handle requests for this github project');
-      err.status = 400;
-      return next(err);
-    }
+    var project;
+    return projects.findProjectByRepo(
+      user,
+      repo,
+      'pull request'
+    ).then(function(_project) {
+      project = _project;
 
-    // project is valid so lets continue...
-    TreeherderGithub.pull(project.name, {
-      github: github,
-      repo: repo,
-      user: user,
-      number: number
+      if (!project) {
+        var err = new Error('Cannot handle requests for this github project');
+        err.status = 400;
+        throw err;
+      }
+
+      return TreeherderGithub.pull(project.name, {
+        github: github,
+        repo: repo,
+        user: user,
+        number: number
+      });
     }).then(function(resultset) {
       resultset.revision_hash = githubGraph.pullRequestResultsetId(ghPr);
       // submit the resultset to treeherder
@@ -130,12 +125,16 @@ var controller = {
       return res.send(201, result);
 
     }).catch(function(err) {
-      console.error('Could not generate or post resulset from github pr');
-      console.error(err);
-      var err = new Error(
-        'failed to generate resultset ' + user + '/' + repo + ' #' + number
-      );
-      err.status = 500;
+      if (!err.status) {
+        // generate a default error status if an explicit value was not given..
+        console.error('Could not generate or post resulset from github pr');
+        console.error(err.stack);
+        var err = new Error(
+          'failed to generate resultset ' + user + '/' + repo + ' #' + number
+        );
+        err.status = 500;
+      }
+
       next(err);
     });
   }

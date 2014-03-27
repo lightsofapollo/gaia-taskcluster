@@ -1,1 +1,26 @@
-{}
+[
+  {
+    "name": "gaia",
+    "consumerSecret": "",
+    "consumerKey": "",
+    "repo": "gaia",
+    "user": "mozilla-b2g",
+    "branch": "v1.5"
+  },
+  {
+    "name": "gaia",
+    "consumerSecret": "",
+    "consumerKey": "",
+    "repo": "gaia",
+    "user": "mozilla-b2g",
+    "branch": "v1.4"
+  },
+  {
+    "name": "gaia",
+    "consumerSecret": "",
+    "consumerKey": "",
+    "repo": "gaia",
+    "user": "mozilla-b2g",
+    "branch": "master"
+  }
+]

@@ -5,8 +5,7 @@ var swagger = require('swagger-jack');
 var Github = require('github');
 var Queue = require('taskcluster-client/queue');
 var Graph = require('taskcluster-client/graph');
-
-var projectConfig = require('./project_config');
+var ProjectStore = require('./stores/project');
 
 module.exports = function buildApp(config) {
   config = config || {};
@@ -22,7 +21,10 @@ module.exports = function buildApp(config) {
   });
 
   if (process.env.GITHUB_OAUTH_TOKEN) {
-    github.authenticate({ type: 'oauth', token: process.env.GITHUB_OAUTH_TOKEN });
+    github.authenticate({
+      type: 'oauth',
+      token: process.env.GITHUB_OAUTH_TOKEN
+    });
   }
 
   app.set('github', github);
@@ -31,24 +33,11 @@ module.exports = function buildApp(config) {
   app.set('queue', new Queue());
   // taskcluster graph configuration
   app.set('graph', new Graph());
-
-  // this is kind of ghetto but the idea is to start loading the project
-  // configuration at startup but block any incoming requests if they
-  // happen prior to this being finished... 
-  var projects = projectConfig(process.env.TREEHEDER_PROJECT_CONFIG_URI);
-  var projectsResolved = false;
-  projects = projects.then(function(config) {
-    app.set('projects', config);
-    projectsResolved = true;
-  }).catch(function() {
-    console.error('Fatal Error: Failed to load configuration for projects');
-    process.exit(1);
-  });
-
-  app.use(function(req, res, next) {
-    if (projectsResolved) return next();
-    projects.then(next, next);
-  });
+  // project configuration store
+  app.set(
+    'projects',
+    new ProjectStore(process.env.TREEHEDER_PROJECT_CONFIG_URI)
+  );
 
   // REST resources
   app.use('/swagger/', express.static(__dirname + '/swagger/'));
