@@ -37,7 +37,6 @@
     "promise": "~4.0.0",
     "express": "~3.4.8",
     "mozilla-treeherder": "~0.1.1",
-    "swagger-jack": "~1.6.2",
     "aws-sdk": "~2.0.0-rc9",
     "aws-sdk-promise": "0.0.0",
     "debug": "~0.7.4",
