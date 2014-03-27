@@ -34,9 +34,35 @@ module.exports = function buildApp(config) {
     new ProjectStore(process.env.TREEHEDER_PROJECT_CONFIG_URI)
   );
 
+  /**
+  Map between github events and handlers for those actions...
+  */
+  var githubEventMap = {
+    pull_request: require('./routes/github_pr')
+  };
+
+  /**
+  Github event handler. Routes events to their respective modules.
+  */
+  function githubEventHandler(req, res, next) {
+    // XXX: Handle signature too
+    var type = req.get('X-GitHub-Event');
+
+    if (!type) {
+      return next(new Error('No github event type sent'));
+    }
+
+    if (!githubEventMap[type]) {
+      return next(new Error('No handler for github event ' + type));
+    }
+
+    // delegate to the actual handlers that deal with specifics..
+    githubEventMap[type].apply(this, arguments);
+  }
+
   // REST resources
   app.use(express.json());
-  app.post('/github/pull_request', require('./routes/github_pr'));
+  app.post('/github', githubEventHandler);
 
   app.use(function errorHandler(error, req, res, next) {
     if (!error) return;

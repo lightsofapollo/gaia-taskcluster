@@ -6,6 +6,7 @@ var githubGraph = require('../graph/github_pr');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 
 function handlePullRequest(req, res, next) {
+  console.log('XHI!');
   var body = req.body;
   var ghRepository = body.repository;
   var ghPr = body.pull_request;

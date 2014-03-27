@@ -66,7 +66,7 @@ suite('github', function() {
       events: ['pull_request'],
       config: {
         // XXX: We ideally should just have one single github entrypoint.
-        url: url + '/github/pull_request',
+        url: url + '/github',
         content_type: 'json'
       }
     }).then(function(result) {
@@ -102,7 +102,7 @@ suite('github', function() {
 
       // wait for the server to respond
       var serverPromise =
-        waitForResponse(server, '/github/pull_request', 201).
+        waitForResponse(server, '/github', 201).
         then(function(pair) {
           req = pair[0];
           res = pair[1];
