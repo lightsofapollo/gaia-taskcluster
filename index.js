@@ -38,7 +38,8 @@ module.exports = function buildApp(config) {
   Map between github events and handlers for those actions...
   */
   var githubEventMap = {
-    pull_request: require('./routes/github_pr')
+    pull_request: require('./routes/github_pr'),
+    push: require('./routes/github_push')
   };
 
   /**

@@ -1,27 +1,27 @@
-var Promise = require('promise');
-var TreeherderGithub = require('mozilla-treeherder/github');
 var TreeherderProject = require('mozilla-treeherder/project');
+var TreehederGHFactory = require('mozilla-treeherder/factory/github');
 
-var githubGraph = require('../graph/github_pr');
+var githubGraph = require('../graph/github_push');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 
-function handlePullRequest(req, res, next) {
+function githubPush(req, res, next) {
   var body = req.body;
-  var ghRepository = body.repository;
-  var ghPr = body.pull_request;
-  var ghAction = body.action;
 
-  // ack closed pull requests but don't create any resources in th or
-  // tc.
-  if (ghAction === 'closed') {
-    return res.send(200);
+  var ghRepo = body.repository;
+  var branch = body.ref.split('/').pop();
+
+  if (!ghRepo || !branch) {
+    var error =
+      new Error('Invalid commit data repository or branch is missing');
+    return next(error);
   }
 
-  if (!ghPr) {
-    var err = new Error('Invalid pull request data');
-    err.status = 400;
-    return next(err);
+  // we get push notifications for branches, etc.. we only care about incoming
+  // commits with new data.
+  if (!body.commits || !body.commits.length) {
+    return res.send(200, { message: 'No commits to take action on' });
   }
+
 
   // taskcluster queue
   var queue = res.app.get('queue');
@@ -29,21 +29,20 @@ function handlePullRequest(req, res, next) {
   var graph = res.app.get('graph');
 
   // github client
-    var github = res.app.get('github');
+  var github = res.app.get('github');
 
   // project configuration
   var projects = res.app.get('projects');
 
   // github params
-  var user = ghRepository.owner.login;
-  var repo = ghRepository.name;
-  var number = ghPr.number;
-
+  var user = ghRepo.owner.name;
+  var repo = ghRepo.name;
   var project;
+
   return projects.findByRepo(
     user,
     repo,
-    'pull request'
+    branch
   ).then(function(_project) {
     project = _project;
 
@@ -53,14 +52,13 @@ function handlePullRequest(req, res, next) {
       throw err;
     }
 
-    return TreeherderGithub.pull(project.name, {
-      github: github,
-      repo: repo,
-      user: user,
-      number: number
-    });
-  }).then(function(resultset) {
-    resultset.revision_hash = githubGraph.pullRequestResultsetId(ghPr);
+    var resultset = {
+      revision_hash: body.head_commit.id,
+      type: 'push',
+      revisions: TreehederGHFactory.pushCommits(project.name, body.commits),
+      push_timestamp: (new Date(body.head_commit.timestamp).valueOf()) / 1000
+    };
+
     // submit the resultset to treeherder
     var thProject = new TreeherderProject(project.name, {
       consumerKey: project.consumerKey,
@@ -69,10 +67,11 @@ function handlePullRequest(req, res, next) {
 
     // treeherder expects an array so just wrap our single resultset.
     return thProject.postResultset([resultset]);
+
   }).then(function() {
 
     // build the graph and send it off...
-    return githubGraph.buildGraph(github, project, ghPr).then(
+    return githubGraph.buildGraph(github, project, body).then(
       graph.create.bind(graph)
     );
 
@@ -84,10 +83,10 @@ function handlePullRequest(req, res, next) {
   }).catch(function(err) {
     if (!err.status) {
       // generate a default error status if an explicit value was not given..
-      console.error('Could not generate or post resulset from github pr');
+      console.error('Could not generate or post resulset from github push');
       console.error(err.stack);
       var err = new Error(
-        'failed to generate resultset ' + user + '/' + repo + ' #' + number
+        'failed to generate resultset ' + user + '/' + repo + ' ' + body.ref
       );
       err.status = 500;
     }
@@ -96,4 +95,4 @@ function handlePullRequest(req, res, next) {
   });
 }
 
-module.exports = handlePullRequest;
+module.exports = githubPush;
