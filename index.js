@@ -1,18 +1,12 @@
 var express = require('express');
 var github = require('github');
 var Promise = require('promise');
-var swagger = require('swagger-jack');
 var Github = require('github');
 var Queue = require('taskcluster-client/queue');
 var Graph = require('taskcluster-client/graph');
-
-var projectConfig = require('./project_config');
+var ProjectStore = require('./stores/project');
 
 module.exports = function buildApp(config) {
-  config = config || {};
-  config.apiVersion = config.apiVersion || '0.0.1';
-  config.basePath = config.basePath || 'http://localhost:' + process.env.PORT;
-
   var app = express();
 
   // github configuration
@@ -22,7 +16,10 @@ module.exports = function buildApp(config) {
   });
 
   if (process.env.GITHUB_OAUTH_TOKEN) {
-    github.authenticate({ type: 'oauth', token: process.env.GITHUB_OAUTH_TOKEN });
+    github.authenticate({
+      type: 'oauth',
+      token: process.env.GITHUB_OAUTH_TOKEN
+    });
   }
 
   app.set('github', github);
@@ -31,37 +28,51 @@ module.exports = function buildApp(config) {
   app.set('queue', new Queue());
   // taskcluster graph configuration
   app.set('graph', new Graph());
+  // project configuration store
+  app.set(
+    'projects',
+    new ProjectStore(process.env.TREEHEDER_PROJECT_CONFIG_URI)
+  );
 
-  // this is kind of ghetto but the idea is to start loading the project
-  // configuration at startup but block any incoming requests if they
-  // happen prior to this being finished... 
-  var projects = projectConfig(process.env.TREEHEDER_PROJECT_CONFIG_URI);
-  var projectsResolved = false;
-  projects = projects.then(function(config) {
-    app.set('projects', config);
-    projectsResolved = true;
-  }).catch(function() {
-    console.error('Fatal Error: Failed to load configuration for projects');
-    process.exit(1);
-  });
+  /**
+  Map between github events and handlers for those actions...
+  */
+  var githubEventMap = {
+    pull_request: require('./routes/github_pr'),
+    push: require('./routes/github_push')
+  };
 
-  app.use(function(req, res, next) {
-    if (projectsResolved) return next();
-    projects.then(next, next);
-  });
+  /**
+  Github event handler. Routes events to their respective modules.
+  */
+  function githubEventHandler(req, res, next) {
+    // XXX: Handle signature too
+    var type = req.get('X-GitHub-Event');
+
+    if (!type) {
+      return next(new Error('No github event type sent'));
+    }
+
+    if (!githubEventMap[type]) {
+      return next(new Error('No handler for github event ' + type));
+    }
+
+    // delegate to the actual handlers that deal with specifics..
+    githubEventMap[type].apply(this, arguments);
+  }
 
   // REST resources
-  app.use('/swagger/', express.static(__dirname + '/swagger/'));
   app.use(express.json());
-  app.use(swagger.generator(
-    app,
-    config,
-    [
-      require('./resources/github_pr')
-    ]
-  ));
+  app.post('/github', githubEventHandler);
 
-  //app.use(swagger.validator(app));
-  app.use(swagger.errorHandler(app));
+  app.use(function errorHandler(error, req, res, next) {
+    if (!error) return;
+
+    var status = error.status || 500;
+    var body = error.body || { message: error.message };
+    console.error('Error while handling', req.path, '\n', error.stack);
+    res.send(status, body);
+  });
+
   return app;
 };

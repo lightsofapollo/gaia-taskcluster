@@ -1,0 +1,23 @@
+#! /usr/bin/env node
+
+var mustache = require('mustache');
+var program = require('commander');
+var fs = require('fs');
+var fsPath = require('path');
+
+program
+  .command('fromjson <credentials.json>')
+  .option(
+    '-t, --template <path>',
+    'template to use to build project',
+    __dirname + '/../projects.json.mustache'
+  )
+  .description('Build a project configuration from treeherder credentials')
+  .action(function(credentialsPath, options) {
+    var credentials = require(fsPath.resolve(credentialsPath));
+    var template = fs.readFileSync(options.template, 'utf8');
+
+    process.stdout.write(mustache.render(template, credentials));
+  });
+
+program.parse(process.argv);
