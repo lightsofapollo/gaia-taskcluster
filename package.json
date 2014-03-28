@@ -31,7 +31,9 @@
     "testing-github": "git://github.com/lightsofapollo/testing-github.git#6f0346b5fc95987eedb5c57be2b265e45943aaff",
     "ngrok-my-server": "0.0.0",
     "uuid": "~1.4.1",
-    "azure-table-node": "~1.4.0"
+    "azure-table-node": "~1.4.0",
+    "mustache": "~0.8.1",
+    "commander": "~2.1.0"
   },
   "dependencies": {
     "promise": "~4.0.0",
