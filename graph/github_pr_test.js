@@ -1,4 +1,4 @@
-suite('github', function() {
+suite('github pr', function() {
   var nock = require('nock');
   var Promise = require('promise');
   var PromiseProxy = require('proxied-promise-object');
@@ -29,33 +29,6 @@ suite('github', function() {
 
   suiteTeardown(function() {
     nock.enableNetConnect();
-  });
-
-  suite('#fetchOwnerFromLogin', function() {
-    test('email address', function() {
-      require('../test/nock/github_user_email')();
-      var login = 'lightsofapollo';
-      return subject.fetchOwnerFromLogin(
-        github,
-        login
-      ).then(function(email) {
-        assert.ok(email, 'has email');
-        assert.ok(
-          email.indexOf('taskcluster.net') === -1, 'is not a generated email'
-        );
-      });
-    });
-
-    test('no email address', function() {
-      require('../test/nock/github_user_no_email')();
-      var login = 'lightsofapollo-staging';
-      return subject.fetchOwnerFromLogin(
-        github,
-        login
-      ).then(function(email) {
-        assert.equal(login + '@github.taskcluster.net', email);
-      });
-    });
   });
 
   suite('#fetchGraph', function() {
@@ -120,6 +93,7 @@ suite('github', function() {
             }
           }
         }),
+        { name: 'treeherder' },
         github,
         pr
       ).then(function(result) {
@@ -158,6 +132,7 @@ suite('github', function() {
         assert.equal(tags.repository, pr.base.repo.html_url);
         assert.equal(tags.pullRequest, pr.html_url);
         assert.equal(tags.githubUsername, pr.head.user.login);
+        assert.equal(tags.treeherderProject, 'treeherder');
       });
     });
 
