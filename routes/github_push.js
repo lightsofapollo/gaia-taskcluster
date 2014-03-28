@@ -45,6 +45,7 @@ function githubPush(req, res, next) {
     branch
   ).then(function(_project) {
     project = _project;
+    debug('Handling push for project ', project);
 
     if (!project) {
       var err = new Error('Cannot handle requests for this github project');

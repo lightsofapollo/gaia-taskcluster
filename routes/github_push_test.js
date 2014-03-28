@@ -138,13 +138,53 @@ suite('github', function() {
       return ghRepo.deleteRef('heads/' + branch);
     });
 
-    test('graph posted to taskcluster', function(){
-      console.log(res.body)
-      console.log(res.body.before, res.body.after);
+     test('graph posted to taskcluster', function() {
+      var expectedGraph = require('../test/fixtures/example_graph');
+      var expectedLabels = Object.keys(expectedGraph.tasks);
+
+      var graph = res.app.get('graph');
+      return graph.azureTable().then(function(creds) {
+        var graphId = res.body.status.taskGraphId;
+        var client = AzureTable.createClient({
+          accountUrl: 'https://' + creds.accountName + '.table.core.windows.net/',
+          accountName: creds.accountName,
+          // yes sas must be a string here this terribleness is correct
+          sas: queryString.stringify(creds.sharedSignature)
+        });
+
+        var query = Promise.denodeify(client.queryEntities.bind(client));
+        return query(creds.taskGraphTable, {
+          query: AzureTable.Query.create('PartitionKey', '==', graphId),
+          limitTo: 20
+        }).then(function(data) {
+          assert.ok(data.length > 0, 'submitted graph');
+          var labels = [];
+
+          data.forEach(function(row) {
+            if (row.label) labels.push(row.label);
+          });
+
+          assert.deepEqual(expectedLabels, labels);
+        });
+      });
     });
 
     test('project creates resultset', function() {
+      var revHash = req.body.head_commit.id;
+
+      // XXX: Replace with some test/project constants?
+      var project = new TreeherderProject('taskcluster-integration');
+
+      return project.getResultset().then(function(list) {
+        var item = list.some(function(item) {
+          // calculated revision hash based on the pull request is a
+          // match
+          return item.revision_hash == revHash;
+        });
+        assert.ok(item, 'posts resulsts to treeherder');
+      });
     });
+
   });
 });
 
