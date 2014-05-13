@@ -9,34 +9,19 @@ var decorate = require('./decorate').decorate;
 var debug = require('debug')('github-taskcluster:graph:github_pr');
 var fetchOwnerFromLogin = require('./github_login');
 
-var TASKGRAPH_PATH = require('./decorate').TASKGRAPH_PATH;
-
-function pullRequestResultsetId(pr) {
-  var id =
-    // prefix so pull requests are distinct from other things
-    'pr-' +
-    // pull request number is unique per project
-    pr.number +
-    '-' +
-    // repository is is unique globally on github and will stay the same
-    // even if the repository is renamed
-    pr.base.repo.id;
-
-  return id;
-}
-
-exports.pullRequestResultsetId = pullRequestResultsetId;
-
 /**
 Fetch the graph (but do not decorate it) from the pull request.
 
 @return {Promise<Object>} raw graph as defined in the repository.
 */
-function fetchGraph(github, pullRequest) {
+function fetchGraph(github, pushEvent) {
+  var ref = pushEvent.ref;
+  var respository = pushEvent.repository;
+
   debug(
     'Fetching graph from repository',
-    pullRequest.head.user.login,
-    pullRequest.head.repo.name
+    respository.owner.name,
+    respository.name
   );
 
   var content = Promise.denodeify(
@@ -44,10 +29,10 @@ function fetchGraph(github, pullRequest) {
   );
 
   var contentRequest = {
-    user: pullRequest.base.user.login,
-    repo: pullRequest.base.repo.name,
-    path: TASKGRAPH_PATH,
-    ref: 'pull/' + pullRequest.number + '/merge'
+    user: respository.owner.name,
+    repo: respository.name,
+    path: require('./decorate').TASKGRAPH_PATH,
+    ref: ref
   };
 
   debug('requesting graph content with', contentRequest);
@@ -65,33 +50,36 @@ Decorate the given graph object with the pull request data.
 
 @return {Promise<Object>} graph result object.
 */
-function decorateGraph(graph, treeherderProject, github, pullRequest) {
+function decorateGraph(graph, treeherderProject, github, pushEvent) {
+  var headCommit = pushEvent.head_commit || pushEvent.commits[0];
+  var committerUsername = headCommit.committer.username;
+  var commitSha = headCommit.id;
+
   // environment variables these do not override if set in the task.
   var envs = {
     CI: true,
     // we use the label since it's available from the PR but not the
     // prefix (so this would be master instead of repo:master)
-    GH_BRANCH: pullRequest.base.label.split(':').pop(),
-    GH_COMMIT: pullRequest.base.sha,
-    GH_PULL_REQUEST: 'true',
-    GH_PULL_REQUEST_NUMBER: pullRequest.number,
-    GH_REPO_SLUG: pullRequest.base.repo.full_name
+    GH_BRANCH: pushEvent.ref.split('/').pop(),
+    GH_COMMIT: commitSha,
+    GH_PULL_REQUEST: 'false',
+    GH_REPO_SLUG: pushEvent.repository.owner.name + '/' +
+                  pushEvent.repository.name
   };
 
   // tag data is always overridden
   var tags = {
-    commit: pullRequest.head.sha,
-    repository: pullRequest.base.repo.html_url,
-    pullRequest: pullRequest.html_url,
-    githubUsername: pullRequest.head.user.login,
-    treeherderResultset: pullRequestResultsetId(pullRequest),
-    treeherderProject: treeherderProject.name,
+    commit: commitSha,
+    repository: pushEvent.repository.url,
+    githubUsername: committerUsername,
+    treeherderResultset: commitSha,
+    treeherderProject: treeherderProject.name
   };
 
-  debug('Fetching owner from login', pullRequest.head.user.login);
+  debug('Fetching owner from login', committerUsername);
   return fetchOwnerFromLogin(
     github,
-    pullRequest.head.user.login
+    committerUsername
   ).then(function(owner) {
     graph = decorate(
       graph,
@@ -107,6 +95,7 @@ function decorateGraph(graph, treeherderProject, github, pullRequest) {
 
 module.exports.decorateGraph = decorateGraph;
 
+
 function buildGraph(github, project, pullRequest) {
   return fetchGraph(github, pullRequest).then(function(graph) {
     return decorateGraph(graph, project, github, pullRequest);
@@ -114,3 +103,4 @@ function buildGraph(github, project, pullRequest) {
 }
 
 module.exports.buildGraph = buildGraph;
+

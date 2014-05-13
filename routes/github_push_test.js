@@ -14,8 +14,9 @@ suite('github', function() {
   var Github = require('github-api');
 
   var nock = require('nock');
+  var uuid = require('uuid');
   var fs = require('fs');
-  var app = require('../');
+  var appFactory = require('../');
   var ngrokify = require('ngrok-my-server');
   var recordJSON = require('../test/response_body_recorder');
   var waitForResponse = require('../test/wait_for_response');
@@ -37,11 +38,13 @@ suite('github', function() {
   var http = require('http');
   var url;
   var server;
+  var app;
   suiteSetup(function() {
+    app = appFactory();
     // setup our http server to record outgoing json responses
     server = http.createServer(recordJSON).listen(0);
     // initialize our express app code
-    server.on('request', app());
+    server.on('request', app);
     // then make it public
     return ngrokify(server).then(function(_url) {
       url = _url;
@@ -51,8 +54,33 @@ suite('github', function() {
   // idempotent fork
   suiteSetup(function() {
     gh = new Github({ token: GH_TOKEN });
+    ghRepo = gh.getRepo(GH_USER, GH_REPO);
     return githubFork(gh, GH_USER, GH_REPO).then(function(_ghRepo) {
       ghRepo = _ghRepo;
+    });
+  });
+
+  // create a branch
+  var branch = 'branch-' + uuid.v4();
+  suiteSetup(function() {
+    return ghRepo.branch('plain', branch);
+  });
+
+  // create a project for this test
+  var project;
+  suiteSetup(function() {
+    return ghRepo.show().then(function(info) {
+      return app.get('projects').findByRepo(
+        info.owner.login,
+        info.name,
+        'pull request'
+      );
+    }).then(function(baseProject) {
+      assert(baseProject, 'has base configuration for tests');
+      project = {};
+      for (var key in baseProject) project[key] = baseProject[key];
+      baseProject.branch = branch;
+      return app.get('projects').add(baseProject);
     });
   });
 
@@ -63,10 +91,10 @@ suite('github', function() {
     // hardcoded.
     return ghRepo.createHook({
       name: 'web',
-      events: ['pull_request'],
+      events: ['push'],
       config: {
         // XXX: We ideally should just have one single github entrypoint.
-        url: url + '/github/pull_request',
+        url: url + '/github',
         content_type: 'json'
       }
     }).then(function(result) {
@@ -78,44 +106,39 @@ suite('github', function() {
     return ghRepo.deleteHook(hookId);
   });
 
-  suite('newly added graph', function() {
+  suite('push with graph', function() {
     var pr, req, res;
+    var fixturePath =
+      __dirname + '/../test/fixtures/example_graph.json';
+
     suiteSetup(function() {
-      // issue the pull request
-      var prPromise = githubPr(GH_TOKEN, {
+      var createFile = Promise.denodeify(app.get('github').repos.createFile);
+
+      var pushPromise = createFile({
+        user: 'lightsofapollo-staging',
         repo: GH_REPO,
-        user: GH_USER,
-        title: 'Testing a pull request',
-        body: 'pr test',
-        branch: 'plain',
-        files: [{
-          commit: 'graph',
-          path: 'taskgraph.json',
-          content: fs.readFileSync(
-            __dirname + '/../test/fixtures/example_graph.json',
-            'utf8'
-          )
-        }]
-      }).then(function(_pr) {
-        pr = _pr;
+        path: 'taskgraph.json',
+        message: 'testing real pushes to repos',
+        content: fs.readFileSync(fixturePath, 'base64'),
+        branch: branch
       });
 
       // wait for the server to respond
       var serverPromise =
-        waitForResponse(server, '/github/pull_request', 201).
+        waitForResponse(server, '/github', 201).
         then(function(pair) {
           req = pair[0];
           res = pair[1];
         });
 
-      return Promise.all(prPromise, serverPromise);
+      return Promise.all(pushPromise, serverPromise);
     });
 
     suiteTeardown(function() {
-      return pr.destroy();
+      return ghRepo.deleteRef('heads/' + branch);
     });
 
-    test('graph posted to taskcluster', function() {
+     test('graph posted to taskcluster', function() {
       var expectedGraph = require('../test/fixtures/example_graph');
       var expectedLabels = Object.keys(expectedGraph.tasks);
 
@@ -147,7 +170,7 @@ suite('github', function() {
     });
 
     test('project creates resultset', function() {
-      var revHash = githubGraph.pullRequestResultsetId(req.body.pull_request);
+      var revHash = req.body.head_commit.id;
 
       // XXX: Replace with some test/project constants?
       var project = new TreeherderProject('taskcluster-integration');
@@ -161,5 +184,7 @@ suite('github', function() {
         assert.ok(item, 'posts resulsts to treeherder');
       });
     });
+
   });
 });
+
