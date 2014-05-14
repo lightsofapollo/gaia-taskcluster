@@ -85,7 +85,7 @@ function decorateGraph(graph, treeherderProject, github, pushEvent) {
       graph,
       envs,
       tags,
-      { owner: owner }
+      { owner: owner, source: '/' }
     );
 
     // cast to promise and fill in the rest of fields with defaults if not set...

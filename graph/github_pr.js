@@ -97,7 +97,8 @@ function decorateGraph(graph, treeherderProject, github, pullRequest) {
       graph,
       envs,
       tags,
-      { owner: owner }
+      // XXX: Add real source!
+      { owner: owner, source: '/' }
     );
 
     // cast to promise and fill in the rest of fields with defaults if not set...

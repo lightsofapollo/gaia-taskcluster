@@ -8,7 +8,7 @@ module.exports.DEFAULT_PROVISIONER =
   process.env.TASKCLUSTER_PROVISIONER_ID || 'aws-provisioner';
 
 module.exports.DEFAULT_WORKER_TYPE =
-  process.env.TASKCLUSTER_WORKER_TYPE || 'ami-f44128c4';
+  process.env.TASKCLUSTER_WORKER_TYPE || 'aufs-worker';
 
 module.exports.ROUTING_KEY =
   process.env.TASKCLUSTER_ROUTING_KEY + '.';
@@ -31,12 +31,30 @@ function decorate(graph, envs, tags, metadata) {
   // we need to override this in all cases so we get notifications for the
   // individual tasks and for the overall graph progress...
   graph.routing = module.exports.ROUTING_KEY;
+  graph.tags = graph.tags || {};
+  graph.metadata = graph.metadata || {};
+  graph.params = graph.params || {};
+
+  // apply the given tags and metadata to the graph too
+  for (var key in metadata) {
+    graph.metadata[key] = metadata[key];
+  }
+
+  for (var key in tags) {
+    graph.tags[key] = tags[key];
+  }
 
   // iterate through all the tasks and decorate them with the details.
   Object.keys(graph.tasks).forEach(function(name) {
     var task = graph.tasks[name];
     var definition = task.task;
-    var taskEnvs = definition.payload.env = definition.payload.env || {};
+
+    var payload = definition.payload;
+
+    // XXX: default timeouts hack
+    payload.maxRunTime = payload.maxRunTime || 7200;
+
+    var taskEnvs = payload.env = payload.env || {};
     var taskTags = definition.tags = definition.tags || {};
     var taskMeta = definition.metadata = definition.metadata || {};
 
