@@ -2,55 +2,41 @@ var TreeherderProject = require('mozilla-treeherder/project');
 var TreehederGHFactory = require('mozilla-treeherder/factory/github');
 
 var githubGraph = require('../graph/github_push');
-var debug = require('debug')('gaia-treeherder/github/pull_request');
-
-function githubPush(req, res, next) {
-  var body = req.body;
-
-  var ghRepo = body.repository;
-  var branch = body.ref.split('/').pop();
-
-  if (!ghRepo || !branch) {
-    var error =
-      new Error('Invalid commit data repository or branch is missing');
-    return next(error);
-  }
-
-  // we get push notifications for branches, etc.. we only care about incoming
-  // commits with new data.
-  if (!body.commits || !body.commits.length) {
-    return res.send(200, { message: 'No commits to take action on' });
-  }
+var debug = require('debug')('gaia-treeherder/github/push');
 
 
-  // taskcluster queue
-  var queue = res.app.get('queue');
-  // taskcluster graph
-  var graph = res.app.get('graph');
+module.exports = function(services) {
 
-  // github client
-  var github = res.app.get('github');
+  return function* () {
+    var body = this.request.body;
+    if (!body) this.throw(400, 'Invalid push format');
 
-  // project configuration
-  var projects = res.app.get('projects');
+    var repository = body.repository;
+    var branch = body.ref.split('/').pop();
 
-  // github params
-  var user = ghRepo.owner.name;
-  var repo = ghRepo.name;
-  var project;
+    if (!repository || !branch) {
+      return this.throw(400, 'Invalid push format missing branch or repository');
+    }
 
-  return projects.findByRepo(
-    user,
-    repo,
-    branch
-  ).then(function(_project) {
-    project = _project;
-    debug('Handling push for project ', project);
+    // we get push notifications for branches, etc.. we only care about incoming
+    // commits with new data.
+    if (!body.commits || !body.commits.length) {
+      this.status = 200;
+      this.body = { message: 'No commits to take action on'  }
+      return;
+    }
+
+    var userName = repository.owner.name;
+    var repoName = repository.name;
+
+    var project = yield services.projects.findByRepo(
+      userName,
+      repoName,
+      branch
+    );
 
     if (!project) {
-      var err = new Error('Cannot handle requests for this github project');
-      err.status = 400;
-      throw err;
+      return this.throw(400, 'Cannot handle requests for this github project');
     }
 
     var resultset = {
@@ -61,39 +47,24 @@ function githubPush(req, res, next) {
     };
 
     // submit the resultset to treeherder
-    var thProject = new TreeherderProject(project.name, {
+    var thRepository = new TreeherderProject(project.name, {
       consumerKey: project.consumerKey,
       consumerSecret: project.consumerSecret
     });
 
-    // treeherder expects an array so just wrap our single resultset.
-    return thProject.postResultset([resultset]);
+    yield thRepository.postResultset([resultset]);
 
-  }).then(function() {
-
-    // build the graph and send it off...
-    return githubGraph.buildGraph(github, project, body).then(
-      graph.createTaskGraph.bind(graph)
+    var graph = yield githubGraph.fetchGraph(services.github, body);
+    var decoratedGraph = yield githubGraph.decorateGraph(
+      graph,
+      thRepository,
+      services.github,
+      body
     );
 
-  }).then(function(result) {
+    var status = yield services.graph.createTaskGraph(decoratedGraph);
+    this.body = status;
+    this.status = 201;
+  };
 
-    // respond with the task ids (mostly for debugging and testing)
-    return res.send(201, result);
-
-  }).catch(function(err) {
-    if (!err.status) {
-      // generate a default error status if an explicit value was not given..
-      console.error('Could not generate or post resulset from github push');
-      console.error(err.stack);
-      var err = new Error(
-        'failed to generate resultset ' + user + '/' + repo + ' ' + body.ref
-      );
-      err.status = 500;
-    }
-
-    next(err);
-  });
-}
-
-module.exports = githubPush;
+};

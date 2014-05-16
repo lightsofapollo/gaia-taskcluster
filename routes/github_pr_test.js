@@ -27,21 +27,17 @@ suite('POST /github - pull request events', function() {
     return;
   }
   // start server and expose a public ip address...
-  var http = require('http');
   var url;
   var server;
   var app;
-  suiteSetup(function() {
+  suiteSetup(co(function*() {
     app = appFactory();
     app.middleware.unshift(require('../test/koa_record')(app));
 
-    // setup our http server to record outgoing json responses
-    server = http.createServer(app.callback()).listen(0);
+    server = app.listen(0);
     // then make it public
-    return ngrokify(server).then(function(_url) {
-      url = _url;
-    });
-  });
+    url = yield ngrokify(server);
+  }));
 
   // idempotent fork
   suiteSetup(co(function* () {

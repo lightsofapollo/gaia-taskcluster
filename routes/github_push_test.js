@@ -18,8 +18,6 @@ suite('github', function() {
   var fs = require('fs');
   var appFactory = require('../');
   var ngrokify = require('ngrok-my-server');
-  var recordJSON = require('../test/response_body_recorder');
-  var waitForResponse = require('../test/wait_for_response');
   var githubPr = require('testing-github/pullrequest');
   var githubFork = require('testing-github/fork');
   var githubGraph = require('../graph/github_pr');
@@ -34,22 +32,19 @@ suite('github', function() {
     return;
   }
 
+
   // start server and expose a public ip address...
-  var http = require('http');
   var url;
   var server;
   var app;
-  suiteSetup(function() {
+  suiteSetup(co(function*() {
     app = appFactory();
-    // setup our http server to record outgoing json responses
-    server = http.createServer(recordJSON).listen(0);
-    // initialize our express app code
-    server.on('request', app);
+    app.middleware.unshift(require('../test/koa_record')(app));
+
+    server = app.listen(0);
     // then make it public
-    return ngrokify(server).then(function(_url) {
-      url = _url;
-    });
-  });
+    url = yield ngrokify(server);
+  }));
 
   // idempotent fork
   suiteSetup(co(function* () {
@@ -67,7 +62,7 @@ suite('github', function() {
   var project;
   suiteSetup(co(function*() {
     // find the global test project for taskcluster
-    var baseProject = yield app.get('projects').findByRepo(
+    var baseProject = yield app.services.projects.findByRepo(
       GH_USER,
       GH_REPO
     );
@@ -88,7 +83,7 @@ suite('github', function() {
     project.user = forkedUser;
     project.repo = forkedRepo;
 
-    yield app.get('projects').add(project);
+    yield app.services.projects.add(project);
   }));
 
   // add some hooks to the repository...
@@ -113,29 +108,21 @@ suite('github', function() {
   });
 
   suite('push with graph', function() {
-    var pr, req, res;
     var fixturePath =
       __dirname + '/../test/fixtures/example_graph.json';
 
+    var ctx;
     suiteSetup(co(function*() {
-      var createFile = Promise.denodeify(app.get('github').repos.createFile);
+      var github = app.services.github;
 
-      var pushPromise = createFile({
-        user: 'lightsofapollo-staging',
-        repo: GH_REPO,
-        path: 'taskgraph.json',
-        message: 'testing real pushes to repos',
-        content: fs.readFileSync(fixturePath, 'base64'),
-        branch: branch
-      });
+      // figure out which repository to push to
+      var user = yield github.getUser().getInfo();
+      var gitBranch = github.getRepo(user.login, GH_REPO).getBranch(branch);
+      // write some content to the graph graph to trigger a "push" event
+      yield gitBranch.write('taskgraph.json', fs.readFileSync(fixturePath, 'utf8'))
 
       // wait for the server to respond
-      var serverPromise = waitForResponse(server, '/github', 201);
-
-      yield pushPromise
-      var pair = yield serverPromise;
-      req = pair[0];
-      res = pair[1];
+      ctx = yield app.waitForResponse('/github', 201);
     }));
 
     suiteTeardown(function() {
@@ -146,8 +133,8 @@ suite('github', function() {
       var expectedGraph = require('../test/fixtures/example_graph');
       var expectedLabels = Object.keys(expectedGraph.tasks);
 
-      var graph = res.app.get('graph');
-      var graphId = res.body.status.taskGraphId;
+      var graph = app.services.graph;
+      var graphId = ctx.body.status.taskGraphId;
 
       var graphStatus = yield graph.inspectTaskGraph(graphId);
       var taskLabels = Object.keys(graphStatus.tasks);
@@ -156,7 +143,7 @@ suite('github', function() {
     }));
 
     test('project creates resultset', co(function*() {
-      var revHash = req.body.head_commit.id;
+      var revHash = ctx.request.body.head_commit.id;
 
       // XXX: Replace with some test/project constants?
       var project = new TreeherderProject('taskcluster-integration');

@@ -47,14 +47,11 @@ suite('github pr', function() {
       require('../test/nock/github_fetch_graph')();
       var repo = github.getRepo(USER, REPO);
       content = yield repo.getBranch('master').contents('taskgraph.json');
+      content = JSON.parse(content);
     }));
 
     test('fetches content from github via pr', co(function* () {
-      try {
       var graph = yield subject.fetchGraph(github, pr);
-      } catch(e) {
-        console.log(e);
-      }
       assert.deepEqual(graph, content);
     }));
   });

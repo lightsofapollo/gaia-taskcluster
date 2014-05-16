@@ -5,6 +5,7 @@
   treeherder/*_test.js \
   stores/*_test.js \
   *_test.js \
+  --harmony \
   --reporter spec
 
 
