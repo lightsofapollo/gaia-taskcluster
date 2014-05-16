@@ -29,7 +29,7 @@ function handlePullRequest(req, res, next) {
   var graph = res.app.get('graph');
 
   // github client
-    var github = res.app.get('github');
+  var github = res.app.get('github');
 
   // project configuration
   var projects = res.app.get('projects');
@@ -61,6 +61,8 @@ function handlePullRequest(req, res, next) {
     });
   }).then(function(resultset) {
     resultset.revision_hash = githubGraph.pullRequestResultsetId(ghPr);
+    resultset.aggregate_id = 'github/' + repo + '/' + user + '/' + number;
+
     // submit the resultset to treeherder
     var thProject = new TreeherderProject(project.name, {
       consumerKey: project.consumerKey,
@@ -73,7 +75,7 @@ function handlePullRequest(req, res, next) {
 
     // build the graph and send it off...
     return githubGraph.buildGraph(github, project, ghPr).then(
-      graph.create.bind(graph)
+      graph.createTaskGraph.bind(graph)
     );
 
   }).then(function(result) {

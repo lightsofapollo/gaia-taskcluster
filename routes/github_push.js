@@ -73,7 +73,7 @@ function githubPush(req, res, next) {
 
     // build the graph and send it off...
     return githubGraph.buildGraph(github, project, body).then(
-      graph.create.bind(graph)
+      graph.createTaskGraph.bind(graph)
     );
 
   }).then(function(result) {

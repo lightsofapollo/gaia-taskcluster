@@ -2,8 +2,7 @@ var express = require('express');
 var github = require('github');
 var Promise = require('promise');
 var Github = require('github');
-var Queue = require('taskcluster-client/queue');
-var Graph = require('taskcluster-client/graph');
+var Taskcluster = require('taskcluster-client');
 var ProjectStore = require('./stores/project');
 
 module.exports = function buildApp(config) {
@@ -25,9 +24,9 @@ module.exports = function buildApp(config) {
   app.set('github', github);
 
   // taskcluster client configuration
-  app.set('queue', new Queue());
+  app.set('queue', Taskcluster.queue)
   // taskcluster graph configuration
-  app.set('graph', new Graph());
+  app.set('graph', Taskcluster.scheduler);
   // project configuration store
   app.set(
     'projects',

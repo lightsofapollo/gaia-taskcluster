@@ -13,7 +13,7 @@ suite('github', function() {
   var AzureTable = require('azure-table-node');
   var Github = require('github-api');
 
-  var nock = require('nock');
+  var co = require('co');
   var uuid = require('uuid');
   var fs = require('fs');
   var appFactory = require('../');
@@ -52,13 +52,10 @@ suite('github', function() {
   });
 
   // idempotent fork
-  suiteSetup(function() {
+  suiteSetup(co(function* () {
     gh = new Github({ token: GH_TOKEN });
-    ghRepo = gh.getRepo(GH_USER, GH_REPO);
-    return githubFork(gh, GH_USER, GH_REPO).then(function(_ghRepo) {
-      ghRepo = _ghRepo;
-    });
-  });
+    ghRepo = yield githubFork(gh, GH_USER, GH_REPO);
+  }));
 
   // create a branch
   var branch = 'branch-' + uuid.v4();
@@ -68,28 +65,38 @@ suite('github', function() {
 
   // create a project for this test
   var project;
-  suiteSetup(function() {
-    return ghRepo.show().then(function(info) {
-      return app.get('projects').findByRepo(
-        info.owner.login,
-        info.name,
-        'pull request'
-      );
-    }).then(function(baseProject) {
-      assert(baseProject, 'has base configuration for tests');
-      project = {};
-      for (var key in baseProject) project[key] = baseProject[key];
-      baseProject.branch = branch;
-      return app.get('projects').add(baseProject);
-    });
-  });
+  suiteSetup(co(function*() {
+    // find the global test project for taskcluster
+    var baseProject = yield app.get('projects').findByRepo(
+      GH_USER,
+      GH_REPO
+    );
+
+    assert(baseProject, 'base project is required');
+
+    // create a new project just for this test and add it to the project state
+
+    // get details for the forked repository
+    var forkedDetails = yield ghRepo.show();
+    var forkedUser = forkedDetails.owner.login;
+    var forkedRepo = forkedDetails.name;
+
+    project = {};
+    for (var key in baseProject) project[key] = baseProject[key];
+    // override the specifics for our new project
+    project.branch = branch;
+    project.user = forkedUser;
+    project.repo = forkedRepo;
+
+    yield app.get('projects').add(project);
+  }));
 
   // add some hooks to the repository...
   var hookId;
-  suiteSetup(function createHook() {
+  suiteSetup(co(function* () {
     // XXX: This should be part of the overall application rather then
     // hardcoded.
-    return ghRepo.createHook({
+    var hook = yield ghRepo.createHook({
       name: 'web',
       events: ['push'],
       config: {
@@ -97,10 +104,9 @@ suite('github', function() {
         url: url + '/github',
         content_type: 'json'
       }
-    }).then(function(result) {
-      hookId = result.id;
     });
-  });
+    hookId = hook.id;
+  }));
 
   suiteTeardown(function deleteHook() {
     return ghRepo.deleteHook(hookId);
@@ -111,7 +117,7 @@ suite('github', function() {
     var fixturePath =
       __dirname + '/../test/fixtures/example_graph.json';
 
-    suiteSetup(function() {
+    suiteSetup(co(function*() {
       var createFile = Promise.denodeify(app.get('github').repos.createFile);
 
       var pushPromise = createFile({
@@ -124,67 +130,46 @@ suite('github', function() {
       });
 
       // wait for the server to respond
-      var serverPromise =
-        waitForResponse(server, '/github', 201).
-        then(function(pair) {
-          req = pair[0];
-          res = pair[1];
-        });
+      var serverPromise = waitForResponse(server, '/github', 201);
 
-      return Promise.all(pushPromise, serverPromise);
-    });
+      yield pushPromise
+      var pair = yield serverPromise;
+      req = pair[0];
+      res = pair[1];
+    }));
 
     suiteTeardown(function() {
       return ghRepo.deleteRef('heads/' + branch);
     });
 
-     test('graph posted to taskcluster', function() {
+    test('graph posted to taskcluster', co(function * () {
       var expectedGraph = require('../test/fixtures/example_graph');
       var expectedLabels = Object.keys(expectedGraph.tasks);
 
       var graph = res.app.get('graph');
-      return graph.azureTable().then(function(creds) {
-        var graphId = res.body.status.taskGraphId;
-        var client = AzureTable.createClient({
-          accountUrl: 'https://' + creds.accountName + '.table.core.windows.net/',
-          accountName: creds.accountName,
-          // yes sas must be a string here this terribleness is correct
-          sas: queryString.stringify(creds.sharedSignature)
-        });
+      var graphId = res.body.status.taskGraphId;
 
-        var query = Promise.denodeify(client.queryEntities.bind(client));
-        return query(creds.taskGraphTable, {
-          query: AzureTable.Query.create('PartitionKey', '==', graphId),
-          limitTo: 20
-        }).then(function(data) {
-          assert.ok(data.length > 0, 'submitted graph');
-          var labels = [];
+      var graphStatus = yield graph.inspectTaskGraph(graphId);
+      var taskLabels = Object.keys(graphStatus.tasks);
 
-          data.forEach(function(row) {
-            if (row.label) labels.push(row.label);
-          });
+      assert.deepEqual(expectedLabels, taskLabels);
+    }));
 
-          assert.deepEqual(expectedLabels, labels);
-        });
-      });
-    });
-
-    test('project creates resultset', function() {
+    test('project creates resultset', co(function*() {
       var revHash = req.body.head_commit.id;
 
       // XXX: Replace with some test/project constants?
       var project = new TreeherderProject('taskcluster-integration');
 
-      return project.getResultset().then(function(list) {
-        var item = list.some(function(item) {
-          // calculated revision hash based on the pull request is a
-          // match
-          return item.revision_hash == revHash;
-        });
-        assert.ok(item, 'posts resulsts to treeherder');
+      var res = yield project.getResultset();
+      var item = res.results.some(function(item) {
+        // calculated revision hash based on the pull request is a
+        // match
+        return item.revision_hash == revHash;
       });
-    });
 
+      assert.ok(item, 'posts resulsts to treeherder');
+    }));
   });
 });
 

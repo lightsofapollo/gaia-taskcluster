@@ -10,7 +10,7 @@ suite('github pr', function() {
   var ghRepo = PromiseProxy(Promise, github.repos);
 
   var PullRequest = require('github-fixtures/pull_request');
-  var Graph = require('taskcluster-client/factory/graph');
+  var Graph = require('taskcluster-task-factory/graph');
 
   var subject = require('./github_pr');
 

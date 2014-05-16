@@ -1,5 +1,5 @@
 var Schema = require('amqpworkers/schema');
-var Exchanges = require('taskcluster-client/exchange');
+var Exchanges = require('./exchanges');
 
 /**
 Build a schema object based on the queue configuration

@@ -3,6 +3,7 @@ var Promise = require('promise');
 
 var debug = require('debug')('treeherder:status');
 var request = require('superagent-promise');
+var getTask = require('../taskcluster/get_task');
 
 function dateToSeconds(date) {
   var submit = new Date(date);
@@ -39,7 +40,7 @@ function taskDecorator(method) {
   return function(queue, payload) {
     var taskId = payload.status.taskId;
 
-    return queue.getTask(taskId).then(function(task) {
+    return getTask(taskId).then(function(task) {
       return method.call(this, queue, payload, task);
     }.bind(this));
 

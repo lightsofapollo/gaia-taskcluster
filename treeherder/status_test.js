@@ -1,9 +1,8 @@
 suite('status handler', function() {
   var TASK_ID = '04fe0a81-d2f4-48de-9251-08dcd66cf6a8';
+  var getTask = require('../taskcluster/get_task');
 
   var Status = require('./status');
-  var Queue = require('taskcluster-client/queue');
-
   var nock = require('nock');
 
   suiteSetup(function() {
@@ -16,13 +15,13 @@ suite('status handler', function() {
 
   var queue;
   setup(function() {
-    queue = new Queue();
+    queue = require('taskcluster-client').queue;
   });
 
   var task;
   setup(function() {
     require('../test/nock/taskcluster_task')();
-    return queue.getTask(TASK_ID).then(function(body) {
+    return getTask(TASK_ID).then(function(body) {
       task = body;
     });
   });

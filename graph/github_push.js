@@ -4,7 +4,7 @@ Creates a graph from a github pull request.
 @module graph/github
 */
 var Promise = require('promise');
-var GraphFactory = require('taskcluster-client/factory/graph');
+var GraphFactory = require('taskcluster-task-factory/graph');
 var decorate = require('./decorate').decorate;
 var debug = require('debug')('github-taskcluster:graph:github_pr');
 var fetchOwnerFromLogin = require('./github_login');
