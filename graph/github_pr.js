@@ -32,30 +32,22 @@ Fetch the graph (but do not decorate it) from the pull request.
 
 @return {Promise<Object>} raw graph as defined in the repository.
 */
-function fetchGraph(github, pullRequest) {
+function* fetchGraph(github, pullRequest) {
   debug(
     'Fetching graph from repository',
     pullRequest.head.user.login,
     pullRequest.head.repo.name
   );
 
-  var content = Promise.denodeify(
-    github.repos.getContent.bind(github.repos)
+  var repo = github.getRepo(
+    pullRequest.base.user.login, // user
+    pullRequest.base.repo.name // repo
   );
 
-  var contentRequest = {
-    user: pullRequest.base.user.login,
-    repo: pullRequest.base.repo.name,
-    path: TASKGRAPH_PATH,
-    ref: 'pull/' + pullRequest.number + '/merge'
-  };
+  var ref = yield repo.git.getRef('pull/' + pullRequest.number + '/merge');
+  var content = yield repo.git.getContents('taskgraph.json', ref)
 
-  debug('requesting graph content with', contentRequest);
-
-  return content(contentRequest).then(function(contents) {
-    debug('loaded graph from repository');
-    return JSON.parse(new Buffer(contents.content, 'base64'));
-  });
+  return content;
 }
 
 module.exports.fetchGraph = fetchGraph;
@@ -65,7 +57,7 @@ Decorate the given graph object with the pull request data.
 
 @return {Promise<Object>} graph result object.
 */
-function decorateGraph(graph, treeherderProject, github, pullRequest) {
+function* decorateGraph(graph, treeherderProject, github, pullRequest) {
   // environment variables these do not override if set in the task.
   var envs = {
     CI: true,
@@ -88,22 +80,18 @@ function decorateGraph(graph, treeherderProject, github, pullRequest) {
     treeherderProject: treeherderProject.name,
   };
 
-  debug('Fetching owner from login', pullRequest.head.user.login);
-  return fetchOwnerFromLogin(
+  var owner = yield fetchOwnerFromLogin(
     github,
     pullRequest.head.user.login
-  ).then(function(owner) {
-    graph = decorate(
-      graph,
-      envs,
-      tags,
-      // XXX: Add real source!
-      { owner: owner, source: '/' }
-    );
+  );
 
-    // cast to promise and fill in the rest of fields with defaults if not set...
-    return Promise.cast(GraphFactory.create(graph));
-  });
+  return GraphFactory.create(decorate(
+    graph,
+    envs,
+    tags,
+    // XXX: Add real source!
+    { owner: owner, source: '/' }
+  ));
 }
 
 module.exports.decorateGraph = decorateGraph;

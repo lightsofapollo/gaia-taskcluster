@@ -1,13 +1,9 @@
 suite('github pr', function() {
   var nock = require('nock');
-  var Promise = require('promise');
-  var PromiseProxy = require('proxied-promise-object');
-  var Github = require('github');
-  var github = new Github({
-    version: '3.0.0',
+  var github = require('octokit').new({
+    token: 'ec6fc0b2b20ddb87fd3f90c1522d720c99c8dc93'
   });
-
-  var ghRepo = PromiseProxy(Promise, github.repos);
+  var co = require('co');
 
   var PullRequest = require('github-fixtures/pull_request');
   var Graph = require('taskcluster-task-factory/graph');
@@ -31,75 +27,70 @@ suite('github pr', function() {
     nock.enableNetConnect();
   });
 
-  suite('#fetchGraph', function() {
-    var pr = PullRequest.create({
-      head: {
-        ref: 'testing',
-        user: { login: USER },
-        repo: {
-          name: REPO
-        }
+  var pr = PullRequest.create({
+    head: {
+      ref: 'testing',
+      user: { login: USER },
+      repo: {
+        name: REPO
       }
-    });
+    },
+    base: {
+      user: { login: USER },
+      repo: { name: REPO }
+    }
+  });
 
+  suite('#fetchGraph', function() {
     var content;
-    setup(function() {
+    setup(co(function* () {
       require('../test/nock/github_fetch_graph')();
-      return ghRepo.getContent({
-        user: USER,
-        repo: REPO,
-        path: 'taskgraph.json'
-      }).then(function(values) {
-        content = JSON.parse(new Buffer(values.content, 'base64'));
-      });
-    });
+      var repo = github.getRepo(USER, REPO);
+      content = yield repo.getBranch('master').contents('taskgraph.json');
+    }));
 
-    test('fetches content from github via pr', function() {
-      return subject.fetchGraph(github, pr).then(function(graph) {
-        assert.deepEqual(graph, content);
-      });
-    });
+    test('fetches content from github via pr', co(function* () {
+      try {
+      var graph = yield subject.fetchGraph(github, pr);
+      } catch(e) {
+        console.log(e);
+      }
+      assert.deepEqual(graph, content);
+    }));
   });
 
   suite('#decorateGraph', function() {
-    var pr = PullRequest.create({
-      head: {
-        user: {
-          login: 'lightsofapollo'
-        }
-      }
-    });
-
     var decorated;
-    setup(function() {
+    setup(co(function * () {
       require('../test/nock/github_user_email')();
-      return subject.decorateGraph(
-        Graph.create({
-          tasks: {
-            'one': {
-              task: {
-                payload: {
-                  // override a value
-                  env: { CI: false }
-                }
+
+      var graph = Graph.create({
+        tasks: {
+          'one': {
+            task: {
+              payload: {
+                // override a value
+                env: { CI: false }
               }
-            },
-            'two': {
-              task: {
-                payload: {
-                  env: { CUSTOM: true }
-                }
+            }
+          },
+          'two': {
+            task: {
+              payload: {
+                env: { CUSTOM: true }
               }
             }
           }
-        }),
+        }
+      });
+
+      decorated = yield subject.decorateGraph(
+        graph,
         { name: 'treeherder' },
         github,
         pr
-      ).then(function(result) {
-        decorated = result;
-      });
-    });
+      );
+    }));
 
     test('environment variables', function() {
       function commonAsserts(task) {
