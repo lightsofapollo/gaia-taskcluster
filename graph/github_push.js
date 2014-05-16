@@ -14,33 +14,16 @@ Fetch the graph (but do not decorate it) from the pull request.
 
 @return {Promise<Object>} raw graph as defined in the repository.
 */
-function fetchGraph(github, pushEvent) {
-  var ref = pushEvent.ref;
-  var respository = pushEvent.repository;
-
-  debug(
-    'Fetching graph from repository',
-    respository.owner.name,
-    respository.name
+function* fetchGraph(github, pushEvent) {
+  var repo = github.getRepo(
+    pushEvent.repository.owner.name,
+    pushEvent.repository.name
   );
 
-  var content = Promise.denodeify(
-    github.repos.getContent.bind(github.repos)
-  );
+  var ref = yield repo.git.getRef(pushEvent.ref.split('refs/').pop());
+  var content = yield repo.git.getContents('taskgraph.json', ref)
 
-  var contentRequest = {
-    user: respository.owner.name,
-    repo: respository.name,
-    path: require('./decorate').TASKGRAPH_PATH,
-    ref: ref
-  };
-
-  debug('requesting graph content with', contentRequest);
-
-  return content(contentRequest).then(function(contents) {
-    debug('loaded graph from repository');
-    return JSON.parse(new Buffer(contents.content, 'base64'));
-  });
+  return JSON.parse(content);
 }
 
 module.exports.fetchGraph = fetchGraph;
@@ -50,7 +33,7 @@ Decorate the given graph object with the pull request data.
 
 @return {Promise<Object>} graph result object.
 */
-function decorateGraph(graph, treeherderProject, github, pushEvent) {
+function* decorateGraph(graph, treeherderProject, github, pushEvent) {
   var headCommit = pushEvent.head_commit || pushEvent.commits[0];
   var committerUsername = headCommit.committer.username;
   var commitSha = headCommit.id;
@@ -76,31 +59,14 @@ function decorateGraph(graph, treeherderProject, github, pushEvent) {
     treeherderProject: treeherderProject.name
   };
 
-  debug('Fetching owner from login', committerUsername);
-  return fetchOwnerFromLogin(
-    github,
-    committerUsername
-  ).then(function(owner) {
-    graph = decorate(
-      graph,
-      envs,
-      tags,
-      { owner: owner, source: '/' }
-    );
+  var owner = yield fetchOwnerFromLogin(github, committerUsername);
 
-    // cast to promise and fill in the rest of fields with defaults if not set...
-    return Promise.cast(GraphFactory.create(graph));
-  });
+  return GraphFactory.create(decorate(
+    graph,
+    envs,
+    tags,
+    { owner: owner, source: '/' }
+  ));
 }
 
 module.exports.decorateGraph = decorateGraph;
-
-
-function buildGraph(github, project, pullRequest) {
-  return fetchGraph(github, pullRequest).then(function(graph) {
-    return decorateGraph(graph, project, github, pullRequest);
-  });
-}
-
-module.exports.buildGraph = buildGraph;
-
