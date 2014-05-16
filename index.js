@@ -1,76 +1,62 @@
-var express = require('express');
-var github = require('github');
-var Promise = require('promise');
-var Github = require('github');
-var Taskcluster = require('taskcluster-client');
-var ProjectStore = require('./stores/project');
+var koa = require('koa');
+var co = require('co');
+var request = require('superagent-promise');
+var taskcluster = require('taskcluster-client');
 
-module.exports = function buildApp(config) {
-  var app = express();
+var Projects = require('./stores/project');
+var Github = require('octokit');
 
-  // github configuration
+module.exports = function() {
+  var app = koa();
 
-  var github = new Github({
-    version: '3.0.0'
-  });
+  app.use(require('koa-logger')());
+  app.use(require('koa-body-parser')());
+  app.use(require('koa-trie-router')(app));
 
-  if (process.env.GITHUB_OAUTH_TOKEN) {
-    github.authenticate({
-      type: 'oauth',
-      token: process.env.GITHUB_OAUTH_TOKEN
-    });
-  }
+  var githubOptions = process.env.GITHUB_OAUTH_TOKEN ?
+    { token: process.env.GITHUB_OAUTH_TOKEN } :
+    undefined;
 
-  app.set('github', github);
-
-  // taskcluster client configuration
-  app.set('queue', Taskcluster.queue)
-  // taskcluster graph configuration
-  app.set('graph', Taskcluster.scheduler);
-  // project configuration store
-  app.set(
-    'projects',
-    new ProjectStore(process.env.TREEHEDER_PROJECT_CONFIG_URI)
-  );
-
-  /**
-  Map between github events and handlers for those actions...
-  */
-  var githubEventMap = {
-    pull_request: require('./routes/github_pr'),
-    push: require('./routes/github_push')
+  // common services needed by the routes
+  var services = {
+    queue: taskcluster.queue,
+    graph: taskcluster.scheduler,
+    projects: new Projects(process.env.TREEHEDER_PROJECT_CONFIG_URI),
+    // XXX: in the near future this will not be a global service but something
+    //      directly related to each project...
+    github: Github.new(githubOptions)
   };
 
-  /**
-  Github event handler. Routes events to their respective modules.
-  */
-  function githubEventHandler(req, res, next) {
-    // XXX: Handle signature too
-    var type = req.get('X-GitHub-Event');
+  app.services = services;
 
-    if (!type) {
-      return next(new Error('No github event type sent'));
+  // github event routing logic
+
+  var githubEvents = {
+    pull_request: require('./routes/github_pr')(services),
+    //push: require('./routes/github_push')(services)
+  };
+
+  app.post('/github', function* () {
+    // TODO: Implement ip address verification AND/OR signed bodies
+
+    var eventName = this.get('X-GitHub-Event');
+
+    if (!eventName) {
+      this.throw(400, 'Hook must contain event type');
+      return;
     }
 
-    if (!githubEventMap[type]) {
-      return next(new Error('No handler for github event ' + type));
+    if (!githubEvents[eventName]) {
+      this.throw(400, 'Cannot handle "' + eventName + '" events');
+      return;
     }
 
-    // delegate to the actual handlers that deal with specifics..
-    githubEventMap[type].apply(this, arguments);
-  }
+    yield githubEvents[eventName];
+  });
 
-  // REST resources
-  app.use(express.json());
-  app.post('/github', githubEventHandler);
-
-  app.use(function errorHandler(error, req, res, next) {
-    if (!error) return;
-
-    var status = error.status || 500;
-    var body = error.body || { message: error.message };
-    console.error('Error while handling', req.path, '\n', error.stack);
-    res.send(status, body);
+  app.route('/').get(function* () {
+    this.status = 404;
+    this.body = 'oops';
   });
 
   return app;

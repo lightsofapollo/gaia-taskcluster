@@ -14,8 +14,6 @@ suite('POST /github - pull request events', function() {
   var co = require('co');
   var appFactory = require('../');
   var ngrokify = require('ngrok-my-server');
-  var recordJSON = require('../test/response_body_recorder');
-  var waitForResponse = require('../test/wait_for_response');
   var githubPr = require('testing-github/pullrequest');
   var githubFork = require('testing-github/fork');
   var githubGraph = require('../graph/github_pr');
@@ -35,10 +33,10 @@ suite('POST /github - pull request events', function() {
   var app;
   suiteSetup(function() {
     app = appFactory();
+    app.middleware.unshift(require('../test/koa_record')(app));
+
     // setup our http server to record outgoing json responses
-    server = http.createServer(recordJSON).listen(0);
-    // initialize our express app code
-    server.on('request', app);
+    server = http.createServer(app.callback()).listen(0);
     // then make it public
     return ngrokify(server).then(function(_url) {
       url = _url;
@@ -72,7 +70,7 @@ suite('POST /github - pull request events', function() {
   var project;
   suiteSetup(co(function*() {
     // find the global test project for taskcluster
-    var baseProject = yield app.get('projects').findByRepo(
+    var baseProject = yield app.services.projects.findByRepo(
       GH_USER,
       GH_REPO
     );
@@ -93,7 +91,7 @@ suite('POST /github - pull request events', function() {
     project.user = forkedUser;
     project.repo = forkedRepo;
 
-    yield app.get('projects').add(project);
+    yield app.services.projects.add(project);
   }));
 
   suiteTeardown(function deleteHook() {
@@ -101,7 +99,7 @@ suite('POST /github - pull request events', function() {
   });
 
   suite('newly added graph', function() {
-    var pr, req, res;
+    var pr, ctx;
 
     suiteSetup(co(function*() {
       // issue the pull request
@@ -122,13 +120,8 @@ suite('POST /github - pull request events', function() {
       });
 
       // wait for the server to respond
-      var serverPromise = waitForResponse(server, '/github', 201);
-
       pr = yield prPromise;
-      var serverPair = yield serverPromise;
-
-      req = serverPair[0];
-      res = serverPair[1];
+      ctx = yield app.waitForResponse('/github', 201);
     }));
 
     suiteTeardown(function() {
@@ -139,8 +132,8 @@ suite('POST /github - pull request events', function() {
       var expectedGraph = require('../test/fixtures/example_graph');
       var expectedLabels = Object.keys(expectedGraph.tasks);
 
-      var graph = res.app.get('graph');
-      var graphId = res.body.status.taskGraphId;
+      var graph = app.services.graph;
+      var graphId = ctx.body.status.taskGraphId;
 
       var graphStatus = yield graph.inspectTaskGraph(graphId);
       var taskLabels = Object.keys(graphStatus.tasks);
@@ -149,7 +142,7 @@ suite('POST /github - pull request events', function() {
     }));
 
     test('project creates resultset', co(function* () {
-      var revHash = githubGraph.pullRequestResultsetId(req.body.pull_request);
+      var revHash = githubGraph.pullRequestResultsetId(ctx.request.body.pull_request);
 
       // XXX: Replace with some test/project constants?
       var project = new TreeherderProject('taskcluster-integration');

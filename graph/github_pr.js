@@ -47,7 +47,7 @@ function* fetchGraph(github, pullRequest) {
   var ref = yield repo.git.getRef('pull/' + pullRequest.number + '/merge');
   var content = yield repo.git.getContents('taskgraph.json', ref)
 
-  return content;
+  return JSON.parse(content);
 }
 
 module.exports.fetchGraph = fetchGraph;
@@ -95,11 +95,3 @@ function* decorateGraph(graph, treeherderProject, github, pullRequest) {
 }
 
 module.exports.decorateGraph = decorateGraph;
-
-function buildGraph(github, project, pullRequest) {
-  return fetchGraph(github, pullRequest).then(function(graph) {
-    return decorateGraph(graph, project, github, pullRequest);
-  });
-}
-
-module.exports.buildGraph = buildGraph;
