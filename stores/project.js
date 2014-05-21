@@ -1,4 +1,4 @@
-var projectConfig = require('../project_config');
+var projectConfig = require('./project_config');
 var Promise = require('promise');
 var debug = require('debug')('github-taskcluster/stores/project');
 
