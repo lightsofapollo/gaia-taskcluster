@@ -7,11 +7,8 @@ Fetch the github email address based on the login of the user.
 @param {String} login username for github.
 */
 function* fetchOwnerFromLogin(github, login) {
+  // This must be an email it's easier to use a "fake" email
   var user = yield github.getUser(login).getInfo();
-
-  // if we have an email immediately return it
-  if (user.email) return user.email;
-  // otherwise construct the ghetto fake email for takscluster
   return user.login + '@' + FAKE_EMAIL_DOMAIN;
 }
 

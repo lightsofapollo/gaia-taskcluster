@@ -16,7 +16,6 @@ suite('POST /github - pull request events', function() {
   var ngrokify = require('ngrok-my-server');
   var githubPr = require('testing-github/pullrequest');
   var githubFork = require('testing-github/fork');
-  var githubGraph = require('../graph/github_pr');
   var gh; // generic github-api interface
   var ghRepo; // github repository interface
 
@@ -129,7 +128,7 @@ suite('POST /github - pull request events', function() {
       var expectedLabels = Object.keys(expectedGraph.tasks);
 
       var graph = app.services.graph;
-      var graphId = ctx.body.status.taskGraphId;
+      var graphId = ctx.body.taskGraphId;
 
       var graphStatus = yield graph.inspectTaskGraph(graphId);
       var taskLabels = Object.keys(graphStatus.tasks);
@@ -138,18 +137,21 @@ suite('POST /github - pull request events', function() {
     }));
 
     test('project creates resultset', co(function* () {
-      var revHash = githubGraph.pullRequestResultsetId(ctx.request.body.pull_request);
-
       // XXX: Replace with some test/project constants?
       var project = new TreeherderProject('taskcluster-integration');
+      var revHash = ctx.body.treeherderRevisionHash;
 
       var res = yield project.getResultset();
-      var item = res.results.some(function(item) {
+      var items = res.results.filter(function(item) {
         // calculated revision hash based on the pull request is a
         // match
         return item.revision_hash == revHash;
       });
-      assert.ok(item, 'posts resulsts to treeherder');
+
+      var resultset = items.shift();
+
+      assert.ok(resultset, 'posts resulsts to treeherder');
+      assert.ok(resultset.author.indexOf(GH_USER) !== -1, 'has author');
     }));
   });
 

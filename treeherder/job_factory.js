@@ -26,7 +26,7 @@ var JobFactory = new Factory({
     group_symbol: '?',
     group_name: 'gaia',
     // submit_timestamp: (new Date()).valueOf()
-    job_symbol: 'GI',
+    //job_symbol: 'GI',
     state: 'pending',
     // log_references: []
   }

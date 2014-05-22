@@ -1,6 +1,6 @@
 var assert = require('assert');
 var amqplib = require('amqplib');
-var projectConfig = require('./project_config');
+var projectConfig = require('./stores/project_config');
 var Taskcluster = require('taskcluster-client');
 var TaskConsumer = require('./amqp/task_consumer');
 var Schema = require('./amqp/schema');

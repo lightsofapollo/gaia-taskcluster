@@ -1,4 +1,4 @@
-#! /usr/bin/env node
+#! /usr/bin/env node --harmony
 
 var program = require('commander');
 var debug = require('debug')('gaia-taskcluster:worker-cli');

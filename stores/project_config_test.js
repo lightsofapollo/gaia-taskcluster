@@ -1,4 +1,4 @@
-suite('project config', function() {  
+suite('project config', function() {
   var subject = require('./project_config');
 
   var nock = require('nock');

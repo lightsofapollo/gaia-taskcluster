@@ -1,12 +1,9 @@
-#! /usr/bin/env node
+#! /usr/bin/env node --harmony
 
 var port = process.env.PORT || 60023;
 var url = process.env.URL || 'http://localhost:' + port;
 
-var server = require('../')({
-  apiVersion: '0.0.1',
-  basePath: url
-});
+var server = require('../')();
 
 // configure a process.env.URL if one is not created for for us...
 console.log('server started %s', url);
