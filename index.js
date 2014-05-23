@@ -32,7 +32,7 @@ module.exports = function() {
 
   var githubEvents = {
     pull_request: require('./routes/github_pr')(services),
-    //push: require('./routes/github_push')(services)
+    push: require('./routes/github_push')(services)
   };
 
   app.post('/github', function* () {

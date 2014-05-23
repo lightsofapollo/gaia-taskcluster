@@ -1,11 +1,14 @@
 var TreeherderProject = require('mozilla-treeherder/project');
 var TreehederGHFactory = require('mozilla-treeherder/factory/github');
+var GraphFactory = require('taskcluster-task-factory/graph');
 
-var githubGraph = require('../graph/github_push');
+var pushContent = require('../github/push_content');
+var ghOwner = require('../github/owner');
+var merge = require('deap').merge;
 var debug = require('debug')('gaia-treeherder/github/push');
 
-
 module.exports = function(services) {
+  var TASKGRAPH_PATH = services.config.taskGraphPath;
 
   return function* () {
     var body = this.request.body;
@@ -28,6 +31,7 @@ module.exports = function(services) {
 
     var userName = repository.owner.name;
     var repoName = repository.name;
+    var commit = body.head_commit.id;
 
     var project = yield services.projects.findByRepo(
       userName,
@@ -35,13 +39,18 @@ module.exports = function(services) {
       branch
     );
 
+    // owner email address note that we use who submitted the pr not who
+    // authored the code originally
+    var owner = yield ghOwner(services.github, body.pusher.name);
+
     if (!project) {
       return this.throw(400, 'Cannot handle requests for this github project');
     }
 
     var resultset = {
-      revision_hash: body.head_commit.id,
+      revision_hash: commit,
       type: 'push',
+      author: owner,
       revisions: TreehederGHFactory.pushCommits(project.name, body.commits),
       push_timestamp: (new Date(body.head_commit.timestamp).valueOf()) / 1000
     };
@@ -54,17 +63,67 @@ module.exports = function(services) {
 
     yield thRepository.postResultset([resultset]);
 
-    var graph = yield githubGraph.fetchGraph(services.github, body);
-    var decoratedGraph = yield githubGraph.decorateGraph(
+    var graph = JSON.parse(yield pushContent(services.github, body, TASKGRAPH_PATH));
+
+    var source = services.config.github.rawUrl + '/' +
+      repository.owner.name + '/' +
+      repository.name + '/' +
+      branch + '/' +
+      TASKGRAPH_PATH;
+
+    graph = merge(
+      // remember these values _override_ values set elsewhere
+      {
+        metadata: {
+          owner: owner,
+          source: source,
+        },
+        // we attempt to limit the amount of graph configuration here but many
+        // defaults are set in config.js
+        params: {
+          githubBranch: branch,
+          githubRepo: repoName,
+          githubUser: userName,
+          // ensure these are always strings to avoid errors from tc
+          githubCommit: String(commit),
+          githubRef: body.ref,
+          treeherderRepo: project.name
+        }
+      },
+
+      // original graph from github
       graph,
-      thRepository,
-      services.github,
-      body
+
+      // defaults set by config.js
+      services.config.graph
     );
 
-    var status = yield services.graph.createTaskGraph(decoratedGraph);
-    this.body = status;
+    Object.keys(graph.tasks).forEach(function(key) {
+      graph.tasks[key].task = merge(
+        // strict overrides
+        {
+          metadata: {
+            owner: owner,
+            source: source
+          },
+        },
+
+        // original task in the graph
+        graph.tasks[key].task,
+
+        // defaults set by config.js
+        services.config.task
+      );
+    });
+
+    graph = GraphFactory.create(graph);
+
+    var status = yield services.graph.createTaskGraph(graph);
+    this.body = {
+      taskGraphId: status.status.taskGraphId,
+      treeherderProject: project.name,
+      treeherderRevisionHash: commit
+    };
     this.status = 201;
   };
-
 };

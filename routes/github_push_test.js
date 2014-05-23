@@ -1,8 +1,6 @@
 suite('github', function() {
   this.timeout('100s');
 
-  var Promise = require('promise');
-  var PromiseProxy = require('proxied-promise-object');
   var TreeherderProject = require('mozilla-treeherder/project');
 
   // github target repository...
@@ -10,7 +8,6 @@ suite('github', function() {
   var GH_REPO = 'github-graph-example';
   var GH_TOKEN = process.env.GITHUB_OAUTH_TOKEN;
 
-  var AzureTable = require('azure-table-node');
   var Github = require('github-api');
 
   var co = require('co');
@@ -18,10 +15,7 @@ suite('github', function() {
   var fs = require('fs');
   var appFactory = require('../');
   var ngrokify = require('ngrok-my-server');
-  var githubPr = require('testing-github/pullrequest');
   var githubFork = require('testing-github/fork');
-  var githubGraph = require('../graph/github_pr');
-  var queryString = require('querystring');
   var gh; // generic github-api interface
   var ghRepo; // github repository interface
 
@@ -134,7 +128,7 @@ suite('github', function() {
       var expectedLabels = Object.keys(expectedGraph.tasks);
 
       var graph = app.services.graph;
-      var graphId = ctx.body.status.taskGraphId;
+      var graphId = ctx.body.taskGraphId;
 
       var graphStatus = yield graph.inspectTaskGraph(graphId);
       var taskLabels = Object.keys(graphStatus.tasks);

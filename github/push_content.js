@@ -1,30 +1,30 @@
 /**
 Creates a graph from a github pull request.
 
-@module github/pr_content
+@module github/push_content
 */
-var debug = require('debug')('github-taskcluster:github:pr_content');
+var debug = require('debug')('github-taskcluster:github:pull_content');
 
 /**
 Fetch the graph (but do not decorate it) from the pull request.
 
 @return {Promise<Object>} raw graph as defined in the repository.
 */
-function* fetch(github, pullRequest, path) {
+function* fetch(github, pushEvent, path) {
   debug(
     'Fetching graph from repository',
-    pullRequest.head.user.login,
-    pullRequest.head.repo.name
+    pushEvent.repository.owner.name,
+    pushEvent.repository.name
   );
 
   var repo = github.getRepo(
-    pullRequest.base.user.login, // user
-    pullRequest.base.repo.name // repo
+    pushEvent.repository.owner.name,
+    pushEvent.repository.name
   );
 
   try {
-    var ref = yield repo.git.getRef('pull/' + pullRequest.number + '/merge');
-    return yield repo.git.getContents(path, ref)
+    var ref = yield repo.git.getRef(pushEvent.ref.split('refs/').pop());
+    return yield repo.git.getContents(path, ref);
   } catch (e) {
     debug('Error while trying to fetch path', path, 'at ref', ref, e);
     throw e;
@@ -32,4 +32,3 @@ function* fetch(github, pullRequest, path) {
 }
 
 module.exports = fetch;
-
