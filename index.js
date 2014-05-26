@@ -1,77 +1,56 @@
-var express = require('express');
-var github = require('github');
-var Promise = require('promise');
-var Github = require('github');
-var Queue = require('taskcluster-client/queue');
-var Graph = require('taskcluster-client/graph');
-var ProjectStore = require('./stores/project');
+var koa = require('koa');
+var co = require('co');
+var request = require('superagent-promise');
+var taskcluster = require('taskcluster-client');
 
-module.exports = function buildApp(config) {
-  var app = express();
+var Projects = require('./stores/project');
+var Github = require('octokit');
 
-  // github configuration
+module.exports = function() {
+  // include configuration in a function to give time for overrides?
+  var config = require('./config');
+  var app = koa();
 
-  var github = new Github({
-    version: '3.0.0'
-  });
+  app.use(require('koa-logger')());
+  app.use(require('koa-body-parser')());
+  app.use(require('koa-trie-router')(app));
 
-  if (process.env.GITHUB_OAUTH_TOKEN) {
-    github.authenticate({
-      type: 'oauth',
-      token: process.env.GITHUB_OAUTH_TOKEN
-    });
-  }
-
-  app.set('github', github);
-
-  // taskcluster client configuration
-  app.set('queue', new Queue());
-  // taskcluster graph configuration
-  app.set('graph', new Graph());
-  // project configuration store
-  app.set(
-    'projects',
-    new ProjectStore(process.env.TREEHEDER_PROJECT_CONFIG_URI)
-  );
-
-  /**
-  Map between github events and handlers for those actions...
-  */
-  var githubEventMap = {
-    pull_request: require('./routes/github_pr'),
-    push: require('./routes/github_push')
+  // common services needed by the routes
+  var services = {
+    config: config,
+    queue: taskcluster.queue,
+    graph: taskcluster.scheduler,
+    projects: new Projects(config.treeherder.configUri),
+    // XXX: in the near future this will not be a global service but something
+    //      directly related to each project...
+    github: Github.new({ token: config.github.token })
   };
 
-  /**
-  Github event handler. Routes events to their respective modules.
-  */
-  function githubEventHandler(req, res, next) {
-    // XXX: Handle signature too
-    var type = req.get('X-GitHub-Event');
+  app.services = services;
 
-    if (!type) {
-      return next(new Error('No github event type sent'));
+  // github event routing logic
+
+  var githubEvents = {
+    pull_request: require('./routes/github_pr')(services),
+    push: require('./routes/github_push')(services)
+  };
+
+  app.post('/github', function* () {
+    // TODO: Implement ip address verification AND/OR signed bodies
+
+    var eventName = this.get('X-GitHub-Event');
+
+    if (!eventName) {
+      this.throw(400, 'Hook must contain event type');
+      return;
     }
 
-    if (!githubEventMap[type]) {
-      return next(new Error('No handler for github event ' + type));
+    if (!githubEvents[eventName]) {
+      this.throw(400, 'Cannot handle "' + eventName + '" events');
+      return;
     }
 
-    // delegate to the actual handlers that deal with specifics..
-    githubEventMap[type].apply(this, arguments);
-  }
-
-  // REST resources
-  app.use(express.json());
-  app.post('/github', githubEventHandler);
-
-  app.use(function errorHandler(error, req, res, next) {
-    if (!error) return;
-
-    var status = error.status || 500;
-    var body = error.body || { message: error.message };
-    console.error('Error while handling', req.path, '\n', error.stack);
-    res.send(status, body);
+    yield githubEvents[eventName];
   });
 
   return app;

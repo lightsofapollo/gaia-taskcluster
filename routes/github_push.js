@@ -1,99 +1,129 @@
 var TreeherderProject = require('mozilla-treeherder/project');
 var TreehederGHFactory = require('mozilla-treeherder/factory/github');
+var GraphFactory = require('taskcluster-task-factory/graph');
 
-var githubGraph = require('../graph/github_push');
-var debug = require('debug')('gaia-treeherder/github/pull_request');
+var pushContent = require('../github/push_content');
+var ghOwner = require('../github/owner');
+var merge = require('deap').merge;
+var debug = require('debug')('gaia-treeherder/github/push');
 
-function githubPush(req, res, next) {
-  var body = req.body;
+module.exports = function(services) {
+  var TASKGRAPH_PATH = services.config.taskGraphPath;
 
-  var ghRepo = body.repository;
-  var branch = body.ref.split('/').pop();
+  return function* () {
+    var body = this.request.body;
+    if (!body) this.throw(400, 'Invalid push format');
 
-  if (!ghRepo || !branch) {
-    var error =
-      new Error('Invalid commit data repository or branch is missing');
-    return next(error);
-  }
+    var repository = body.repository;
+    var branch = body.ref.split('/').pop();
 
-  // we get push notifications for branches, etc.. we only care about incoming
-  // commits with new data.
-  if (!body.commits || !body.commits.length) {
-    return res.send(200, { message: 'No commits to take action on' });
-  }
+    if (!repository || !branch) {
+      return this.throw(400, 'Invalid push format missing branch or repository');
+    }
 
+    // we get push notifications for branches, etc.. we only care about incoming
+    // commits with new data.
+    if (!body.commits || !body.commits.length) {
+      this.status = 200;
+      this.body = { message: 'No commits to take action on'  }
+      return;
+    }
 
-  // taskcluster queue
-  var queue = res.app.get('queue');
-  // taskcluster graph
-  var graph = res.app.get('graph');
+    var userName = repository.owner.name;
+    var repoName = repository.name;
+    var commit = body.head_commit.id;
 
-  // github client
-  var github = res.app.get('github');
+    var project = yield services.projects.findByRepo(
+      userName,
+      repoName,
+      branch
+    );
 
-  // project configuration
-  var projects = res.app.get('projects');
-
-  // github params
-  var user = ghRepo.owner.name;
-  var repo = ghRepo.name;
-  var project;
-
-  return projects.findByRepo(
-    user,
-    repo,
-    branch
-  ).then(function(_project) {
-    project = _project;
-    debug('Handling push for project ', project);
+    // owner email address note that we use who submitted the pr not who
+    // authored the code originally
+    var owner = yield ghOwner(services.github, body.pusher.name);
 
     if (!project) {
-      var err = new Error('Cannot handle requests for this github project');
-      err.status = 400;
-      throw err;
+      return this.throw(400, 'Cannot handle requests for this github project');
     }
 
     var resultset = {
-      revision_hash: body.head_commit.id,
+      revision_hash: commit,
       type: 'push',
+      author: owner,
       revisions: TreehederGHFactory.pushCommits(project.name, body.commits),
       push_timestamp: (new Date(body.head_commit.timestamp).valueOf()) / 1000
     };
 
     // submit the resultset to treeherder
-    var thProject = new TreeherderProject(project.name, {
+    var thRepository = new TreeherderProject(project.name, {
       consumerKey: project.consumerKey,
       consumerSecret: project.consumerSecret
     });
 
-    // treeherder expects an array so just wrap our single resultset.
-    return thProject.postResultset([resultset]);
+    yield thRepository.postResultset([resultset]);
 
-  }).then(function() {
+    var graph = JSON.parse(yield pushContent(services.github, body, TASKGRAPH_PATH));
 
-    // build the graph and send it off...
-    return githubGraph.buildGraph(github, project, body).then(
-      graph.create.bind(graph)
+    var source = services.config.github.rawUrl + '/' +
+      repository.owner.name + '/' +
+      repository.name + '/' +
+      branch + '/' +
+      TASKGRAPH_PATH;
+
+    graph = merge(
+      // remember these values _override_ values set elsewhere
+      {
+        metadata: {
+          owner: owner,
+          source: source,
+        },
+        // we attempt to limit the amount of graph configuration here but many
+        // defaults are set in config.js
+        params: {
+          githubBranch: branch,
+          githubRepo: repoName,
+          githubUser: userName,
+          // ensure these are always strings to avoid errors from tc
+          githubCommit: String(commit),
+          githubRef: body.ref,
+          treeherderRepo: project.name
+        }
+      },
+
+      // original graph from github
+      graph,
+
+      // defaults set by config.js
+      services.config.graph
     );
 
-  }).then(function(result) {
+    Object.keys(graph.tasks).forEach(function(key) {
+      graph.tasks[key].task = merge(
+        // strict overrides
+        {
+          metadata: {
+            owner: owner,
+            source: source
+          },
+        },
 
-    // respond with the task ids (mostly for debugging and testing)
-    return res.send(201, result);
+        // original task in the graph
+        graph.tasks[key].task,
 
-  }).catch(function(err) {
-    if (!err.status) {
-      // generate a default error status if an explicit value was not given..
-      console.error('Could not generate or post resulset from github push');
-      console.error(err.stack);
-      var err = new Error(
-        'failed to generate resultset ' + user + '/' + repo + ' ' + body.ref
+        // defaults set by config.js
+        services.config.task
       );
-      err.status = 500;
-    }
+    });
 
-    next(err);
-  });
-}
+    graph = GraphFactory.create(graph);
 
-module.exports = githubPush;
+    var status = yield services.graph.createTaskGraph(graph);
+    this.body = {
+      taskGraphId: status.status.taskGraphId,
+      treeherderProject: project.name,
+      treeherderRevisionHash: commit
+    };
+    this.status = 201;
+  };
+};

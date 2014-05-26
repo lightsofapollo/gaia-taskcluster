@@ -1,99 +1,148 @@
 var Promise = require('promise');
-var TreeherderGithub = require('mozilla-treeherder/github');
-var TreeherderProject = require('mozilla-treeherder/project');
+var treeherderPulls = require('mozilla-treeherder/github').pull;
+var TreeherderRepo = require('mozilla-treeherder/project');
 
-var githubGraph = require('../graph/github_pr');
+var GraphFactory = require('taskcluster-task-factory/graph');
+var ghOwner = require('../github/owner');
+var prContent = require('../github/pr_content');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
+var merge = require('deap').merge;
 
-function handlePullRequest(req, res, next) {
-  var body = req.body;
-  var ghRepository = body.repository;
-  var ghPr = body.pull_request;
-  var ghAction = body.action;
+module.exports = function(services) {
 
-  // ack closed pull requests but don't create any resources in th or
-  // tc.
-  if (ghAction === 'closed') {
-    return res.send(200);
-  }
+  var TASKGRAPH_PATH = services.config.taskGraphPath;
 
-  if (!ghPr) {
-    var err = new Error('Invalid pull request data');
-    err.status = 400;
-    return next(err);
-  }
-
-  // taskcluster queue
-  var queue = res.app.get('queue');
-  // taskcluster graph
-  var graph = res.app.get('graph');
-
-  // github client
-    var github = res.app.get('github');
-
-  // project configuration
-  var projects = res.app.get('projects');
-
-  // github params
-  var user = ghRepository.owner.login;
-  var repo = ghRepository.name;
-  var number = ghPr.number;
-
-  var project;
-  return projects.findByRepo(
-    user,
-    repo,
-    'pull request'
-  ).then(function(_project) {
-    project = _project;
-
-    if (!project) {
-      var err = new Error('Cannot handle requests for this github project');
-      err.status = 400;
-      throw err;
+  return function* () {
+    if (!this.request.body) {
+      return this.throw(400, 'Must contain a body');
     }
 
-    return TreeherderGithub.pull(project.name, {
-      github: github,
-      repo: repo,
-      user: user,
-      number: number
+    var body = this.request.body;
+    var repository = body.repository;
+    var pullRequest = body.pull_request;
+    var action = body.action;
+
+    if (!pullRequest) {
+      return this.throw(400, 'Invalid or missing pull request data');
+    }
+
+    // closed is not a failure but we take no actions
+    if (action === 'closed') {
+      // XXX: consider canceling tasks?
+      this.status = 200;
+      return
+    }
+
+    var userName = repository.owner.login;
+    var repoName = repository.name;
+    var number = pullRequest.number;
+    // current commit in the pull request important for status commit api
+    var commit = pullRequest.head.sha;
+
+    var project = yield services.projects.findByRepo(
+      userName,
+      repoName,
+      'pull request' // XXX: 'pull request' is not a real branch but a hack
+    );
+
+    if (!project) {
+      return this.throw(400, 'Cannot handle requests for this github project');
+    }
+
+    var graph = JSON.parse(yield prContent(
+      services.github,
+      pullRequest,
+      TASKGRAPH_PATH
+    ));
+
+    // owner email address note that we use who submitted the pr not who
+    // authored the code originally
+    var owner = yield ghOwner(services.github, body.sender.login);
+
+    var source = services.config.github.rawUrl + '/' +
+      pullRequest.head.repo.full_name + '/' +
+      pullRequest.head.ref + '/' +
+      TASKGRAPH_PATH;
+
+    graph = merge(
+      // remember these values _override_ values set elsewhere
+      {
+        metadata: {
+          owner: owner,
+          source: source,
+        },
+        // we attempt to limit the amount of graph configuration here but many
+        // defaults are set in config.js
+        params: {
+          githubBranch: pullRequest.base.ref,
+          githubRepo: repoName,
+          githubUser: userName,
+          // ensure these are always strings to avoid errors from tc
+          githubPullRequest: String(number),
+          githubCommit: String(commit),
+          githubRef: 'refs/pull/' + number + '/merge',
+          treeherderRepo: project.name
+        }
+      },
+
+      // original graph from github
+      graph,
+
+      // defaults set by config.js
+      services.config.graph
+    );
+
+    Object.keys(graph.tasks).forEach(function(key) {
+      graph.tasks[key].task = merge(
+        // strict overrides
+        {
+          tags: { githubPullRequest: String(number) },
+          metadata: {
+            owner: owner,
+            source: source
+          },
+          payload: {
+            env: {
+              GH_PULL_NUMBER: number
+            }
+          }
+        },
+
+        // original task in the graph
+        graph.tasks[key].task,
+
+        // defaults set by config.js
+        services.config.task
+      );
     });
-  }).then(function(resultset) {
-    resultset.revision_hash = githubGraph.pullRequestResultsetId(ghPr);
-    // submit the resultset to treeherder
-    var thProject = new TreeherderProject(project.name, {
+
+    var treeherderRepo = new TreeherderRepo(project.name, {
       consumerKey: project.consumerKey,
       consumerSecret: project.consumerSecret
     });
 
-    // treeherder expects an array so just wrap our single resultset.
-    return thProject.postResultset([resultset]);
-  }).then(function() {
+    // build the treeherder resultset
+    var resultset = yield treeherderPulls(project.name, {
+      user: userName,
+      repo: repoName,
+      number: number,
+      token: services.config.github.token
+    });
 
-    // build the graph and send it off...
-    return githubGraph.buildGraph(github, project, ghPr).then(
-      graph.create.bind(graph)
-    );
+    resultset.author = owner;
+    resultset.aggregate_id = 'pull/' + number;
+    resultset.revision_hash = commit;
+    yield treeherderRepo.postResultset([resultset]);
 
-  }).then(function(result) {
-
-    // respond with the task ids (mostly for debugging and testing)
-    return res.send(201, result);
-
-  }).catch(function(err) {
-    if (!err.status) {
-      // generate a default error status if an explicit value was not given..
-      console.error('Could not generate or post resulset from github pr');
-      console.error(err.stack);
-      var err = new Error(
-        'failed to generate resultset ' + user + '/' + repo + ' #' + number
-      );
-      err.status = 500;
-    }
-
-    next(err);
-  });
-}
-
-module.exports = handlePullRequest;
+    // finally use the factory to fill in any required fields that have
+    // defaults...
+    graph = GraphFactory.create(graph);
+    var graphStatus = yield services.graph.createTaskGraph(GraphFactory.create(graph));
+    this.status = 201;
+    this.body = {
+      taskGraphId: graphStatus.status.taskGraphId,
+      treeherderProject: project.name,
+      treeherderRevisionHash: commit
+    };
+  }
+};

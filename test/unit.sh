@@ -1,10 +1,9 @@
 #! /bin/bash -vex
 
 ./node_modules/.bin/mocha \
-  graph/*_test.js \
+  --harmony \
+  --reporter spec \
   treeherder/*_test.js \
-  stores/*_test.js \
-  *_test.js \
-  --reporter spec
+  stores/*_test.js
 
 

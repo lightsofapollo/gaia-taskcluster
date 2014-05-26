@@ -1,4 +1,10 @@
 {
+  "tags": {},
+  "metadata": {
+    "name": "name",
+    "owner": "owner@owner.com",
+    "description": "description"
+  },
   "tasks": {
     "test_local_graph": {
       "task": {

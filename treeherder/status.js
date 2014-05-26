@@ -3,6 +3,7 @@ var Promise = require('promise');
 
 var debug = require('debug')('treeherder:status');
 var request = require('superagent-promise');
+var getTask = require('../taskcluster/get_task');
 
 function dateToSeconds(date) {
   var submit = new Date(date);
@@ -39,7 +40,7 @@ function taskDecorator(method) {
   return function(queue, payload) {
     var taskId = payload.status.taskId;
 
-    return queue.getTask(taskId).then(function(task) {
+    return getTask(taskId).then(function(task) {
       return method.call(this, queue, payload, task);
     }.bind(this));
 
@@ -57,9 +58,10 @@ var StatusHandler = {
     var tags = task.tags;
 
     return Factory.create({
-      revision_hash: tags.treeherderResultset,
-      project: tags.treeherderProject,
+      revision_hash: tags.commit,
+      project: tags.treeherderRepo,
       job: {
+        who: task.metadata.owner,
         name: task.metadata.name,
         description: task.metadata.description,
         job_guid: payload.status.taskId,
@@ -72,6 +74,17 @@ var StatusHandler = {
   pending: taskDecorator(function(queue, payload, task) {
     var base = this.base(payload, task);
     base.job.state = 'pending';
+    base.job.artifacts = [{
+      type: 'json',
+      name: 'Job Info',
+      blob: {
+        tinderbox_printlines: [
+          'taskcluster task link: ' +
+          'http://docs.taskcluster.net/tools/task-inspector/#' +
+          payload.status.taskId
+        ]
+      }
+    }];
     debug('mark task as pending', task, base);
     return base;
   }),
@@ -81,17 +94,6 @@ var StatusHandler = {
       var logs = body.logs;
       var base = this.base(payload, task);
       base.job.state = 'running';
-      base.job.artifact = {
-        type: 'json',
-        name: 'Job Info',
-        blob: {
-          tinderbox_printlines: [
-            'taskcluster task link: ' +
-            'http://docs.taskcluster.net/tools/task-inspector/#' +
-            payload.status.taskId
-          ]
-        }
-      };
       base.job.log_references = Object.keys(logs).map(function(name) {
         return {
           url: logs[name],

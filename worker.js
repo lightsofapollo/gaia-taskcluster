@@ -1,7 +1,7 @@
 var assert = require('assert');
 var amqplib = require('amqplib');
-var projectConfig = require('./project_config');
-var Queue = require('taskcluster-client/queue');
+var projectConfig = require('./stores/project_config');
+var Taskcluster = require('taskcluster-client');
 var TaskConsumer = require('./amqp/task_consumer');
 var Schema = require('./amqp/schema');
 
@@ -35,7 +35,7 @@ function worker(options) {
   var consumer;
 
   // http interface to the taskcluster queue
-  var queue = new Queue();
+  var queue = Taskcluster.queue;
 
   var schema = new Schema(options.queue, options.queueConfig || {
     // default to auto delete if no queue configuration is given
@@ -49,7 +49,7 @@ function worker(options) {
   return projectConfig(configUri).then(function(config) {
     projects = config;
   }).then(function() {
-    return queue.amqpConnectionString();
+    return queue.getAMQPConnectionString();
   }).then(function(body) {
     return amqplib.connect(body.url, {
       // heartbeat every 2 minutes (XXX: should this be configurable?)

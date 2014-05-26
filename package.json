@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "description": "gaia-taskcluster",
   "main": "index.js",
+  "engines": {
+    "node": "0.11.x"
+  },
   "scripts": {
     "test": "./test/unit.sh",
     "test-unit": "./test/unit.sh",
@@ -21,12 +24,10 @@
   "homepage": "https://github.com/lightsofapollo/gaia-taskcluster",
   "devDependencies": {
     "github-fixtures": "0.0.1",
-    "github": "~0.1.14",
     "nock": "~0.27.2",
     "supertest": "~0.9.0",
     "mocha": "~1.18",
     "superagent": "~0.16.0",
-    "superagent-promise": "0.0.0",
     "github-api": "git://github.com/michael/github.git#7b45b4d6936c3dfb271bb0ea09924554c74e9de8",
     "testing-github": "git://github.com/lightsofapollo/testing-github.git#6f0346b5fc95987eedb5c57be2b265e45943aaff",
     "ngrok-my-server": "0.0.0",
@@ -36,18 +37,26 @@
     "commander": "~2.1.0"
   },
   "dependencies": {
-    "promise": "~4.0.0",
-    "express": "~3.4.8",
-    "mozilla-treeherder": "~0.2.0",
-    "aws-sdk": "~2.0.0-rc9",
-    "aws-sdk-promise": "0.0.0",
-    "debug": "~0.7.4",
     "amqplib": "~0.1.3",
     "amqpworkers": "0.0.1",
-    "taskcluster-client": "0.3.1",
+    "aws-sdk": "~2.0.0-rc9",
+    "aws-sdk-promise": "0.0.0",
+    "co": "^3.0.6",
     "commander": "~2.1.0",
-    "superagent-promise": "0.0.0",
+    "deap": "^0.2.2",
+    "debug": "~0.7.4",
+    "koa": "^0.6.1",
+    "koa-body-parser": "^1.0.0",
+    "koa-logger": "^1.2.1",
+    "koa-trie-router": "^1.0.5",
+    "merge": "^1.1.3",
+    "mozilla-treeherder": "~0.4.0",
     "object-factory": "~0.1.2",
-    "proxied-promise-object": "~0.1.0"
+    "octokit": "git://github.com/lightsofapollo/octokit.js#real-errors",
+    "promise": "~4.0.0",
+    "proxied-promise-object": "~0.1.0",
+    "superagent-promise": "^0.1.0",
+    "taskcluster-client": "^0.4.3",
+    "taskcluster-task-factory": "^0.3.0"
   }
 }

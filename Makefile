@@ -1,6 +1,6 @@
 .PHONY: test
 test:
-	./node_modules/.bin/mocha \
+	./node_modules/.bin/mocha --harmony \
 		$(wildcard treeherder/*_test.js) \
 		$(wildcard graph/*_test.js) \
 		$(wildcard *_test.js) \
@@ -8,5 +8,5 @@ test:
 
 .PHONY: test-full
 test-full: test
-	./node_modules/.bin/mocha \
-		$(wildcard resources/*_test.js)
+	./node_modules/.bin/mocha --harmony \
+		$(wildcard routes/*_test.js)
