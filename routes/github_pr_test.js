@@ -7,7 +7,6 @@ suite('POST /github - pull request events', function() {
   var GH_TOKEN = process.env.GITHUB_OAUTH_TOKEN;
 
   var TreeherderProject = require('mozilla-treeherder/project');
-  var AzureTable = require('azure-table-node');
   var Github = require('github-api');
 
   var fs = require('fs');
