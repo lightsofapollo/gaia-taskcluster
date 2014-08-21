@@ -45,18 +45,23 @@
     "commander": "~2.1.0",
     "deap": "^0.2.2",
     "debug": "~0.7.4",
+    "json-logger": "^1.0.1",
+    "json-templater": "^1.0.0",
     "koa": "^0.6.1",
     "koa-body-parser": "^1.0.0",
     "koa-logger": "^1.2.1",
     "koa-trie-router": "^1.0.5",
     "merge": "^1.1.3",
     "mozilla-treeherder": "~0.4.0",
+    "nconf": "^0.6.9",
+    "object-assign": "^1.0.0",
     "object-factory": "~0.1.2",
     "octokit": "git://github.com/lightsofapollo/octokit.js#real-errors",
     "promise": "~4.0.0",
     "proxied-promise-object": "~0.1.0",
     "superagent-promise": "^0.1.0",
-    "taskcluster-client": "^0.4.3",
-    "taskcluster-task-factory": "^0.3.0"
+    "taskcluster-base": "^0.4.6",
+    "taskcluster-client": "^0.14.6",
+    "taskcluster-task-factory": "^0.6.1"
   }
 }

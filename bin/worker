@@ -2,35 +2,16 @@
 
 var program = require('commander');
 var debug = require('debug')('gaia-taskcluster:worker-cli');
+var co = require('co');
+var config = require('../lib/config');
 
-program
-  .command('start <queue>')
-  .option('--durable', 'this should always be true in production')
-  .option('--prefetch <n>', 'maximum concurrenty of worker')
-  .action(function start(queue, options) {
-    var worker = require('../worker');
-    var queueConfig;
-
-    if (options.durable) {
-      queueConfig = { durable: true };
-    }
-
-    var config = {
-      queue: queue,
-      queueConfig: queueConfig,
-      prefetch: options.prefetch
-    };
-
-    debug('start', config);
-
-    worker(config).then(function() {
-      console.log('consuming on queue');
-    }).catch(function(err) {
-      console.log('Error starting worker:');
-      console.log();
-      console.error(err.stack);
-      process.exit(1);
-    });
-  });
+program.usage(
+  '[options] [queue name]\n\n' +
+  'Note that if no queue name is given the queue will not be durable\n';
+);
 
 program.parse(process.argv);
+
+co(function*() {
+})(function() {
+});

@@ -18,28 +18,42 @@ module.exports = {
   // task level defaults
   task: {
     provisionerId: env('TASKCLUSTER_PROVISIONER_ID', 'aws-provisioner'),
-    workerType: env('TASKCLUSTER_WORKER_TYPE', 'aufs-worker'),
+    workerType: env('TASKCLUSTER_WORKER_TYPE', 'v2'),
     retries: 5,
     timeout: 180,
     tags: {
-      commit: '{{githubCommit}}',
+      branch: '{{branch}}',
+      commit: '{{commit}}',
+      commitRef: '{{commitRef}}',
+      repository: '{{repository}}',
+
       githubRepo: '{{githubRepo}}',
       githubUser: '{{githubUser}}',
-      githubRef: '{{githubRef}}',
       treeherderRepo: '{{treeherderRepo}}'
     },
     metadata: {},
     payload: {
       env: {
         CI: true,
-        GH_BRANCH: '{{githubBranch}}',
-        GH_COMMIT: '{{githubCommit}}',
+        BRANCH: '{{branch}}',
+        COMMIT: '{{commit}}',
+        COMMIT_REF: '{{commitRef}}',
+        REPOSITORY: '{{repository}}',
+
         GH_USER: '{{githubUser}}',
-        GH_REPO: '{{githubRepo}}',
-        GH_REF: '{{githubRef}}'
+        GH_REPO: '{{githubRepo}}'
       },
       maxRunTime: 7200,
       features: {}
+    }
+  },
+
+  taskcluster: {
+    // amqp connection string...
+    amqpUri: '',
+    credentials: {
+      clientId: process.env.TASKCLUSTER_CLIENT_ID || '',
+      accessToken: process.env.TASKCLUSTER_ACCESS_TOKEN || ''
     }
   },
 

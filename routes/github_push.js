@@ -2,13 +2,13 @@ var TreeherderProject = require('mozilla-treeherder/project');
 var TreehederGHFactory = require('mozilla-treeherder/factory/github');
 var GraphFactory = require('taskcluster-task-factory/graph');
 
-var pushContent = require('../github/push_content');
-var ghOwner = require('../github/owner');
+var pushContent = require('../lib/github/push_content');
+var ghOwner = require('../lib/github/owner');
 var merge = require('deap').merge;
 var debug = require('debug')('gaia-treeherder/github/push');
 
 module.exports = function(services) {
-  var TASKGRAPH_PATH = services.config.taskGraphPath;
+  var TASKGRAPH_PATH = services.taskGraphPath;
 
   return function* () {
     var body = this.request.body;

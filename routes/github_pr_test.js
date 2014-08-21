@@ -94,6 +94,7 @@ suite('POST /github - pull request events', function() {
 
   suite('newly added graph', function() {
     var pr, ctx;
+    var graphFixture = require('../test/fixtures/example_graph.json');
 
     suiteSetup(co(function*() {
       // issue the pull request
@@ -106,10 +107,7 @@ suite('POST /github - pull request events', function() {
         files: [{
           commit: 'graph',
           path: 'taskgraph.json',
-          content: fs.readFileSync(
-            __dirname + '/../test/fixtures/example_graph.json',
-            'utf8'
-          )
+          content: JSON.stringify(graphFixture)
         }]
       });
 
@@ -123,8 +121,7 @@ suite('POST /github - pull request events', function() {
     });
 
     test('graph posted to taskcluster', co(function * () {
-      var expectedGraph = require('../test/fixtures/example_graph');
-      var expectedLabels = Object.keys(expectedGraph.tasks);
+      var expectedLabels = Object.keys(graphFixture.tasks);
 
       var graph = app.services.graph;
       var graphId = ctx.body.taskGraphId;
@@ -152,6 +149,53 @@ suite('POST /github - pull request events', function() {
       assert.ok(resultset, 'posts resulsts to treeherder');
       assert.ok(resultset.author.indexOf(GH_USER) !== -1, 'has author');
     }));
+
+    suite('updated graph', function() {
+      var graphFixture = require('../test/fixtures/xfoo_graph.json');
+      suiteSetup(co(function*() {
+        // update the task graph
+        var commit = yield pr.fork.write(
+          pr.forkBranch,
+          'taskgraph.json',
+          JSON.stringify(graphFixture),
+          'update graph'
+        );
+
+        // get the latest commit
+        ctx = yield app.waitForResponse('/github', 201);
+      }));
+
+      test('updated project resultsets', co(function* () {
+        // XXX: Replace with some test/project constants?
+        var project = new TreeherderProject('taskcluster-integration');
+        var revHash = ctx.body.treeherderRevisionHash;
+
+        var res = yield project.getResultset();
+        var items = res.results.filter(function(item) {
+          // calculated revision hash based on the pull request is a
+          // match
+          return item.revision_hash == revHash;
+        });
+
+        var resultset = items.shift();
+
+        assert.ok(resultset, 'posts resulsts to treeherder');
+        assert.ok(resultset.author.indexOf(GH_USER) !== -1, 'has author');
+      }));
+
+      test('graph posted to taskcluster', co(function * () {
+        var expectedLabels = Object.keys(graphFixture.tasks);
+
+        var graph = app.services.graph;
+        var graphId = ctx.body.taskGraphId;
+
+        var graphStatus = yield graph.inspectTaskGraph(graphId);
+        var taskLabels = Object.keys(graphStatus.tasks);
+
+        assert.deepEqual(expectedLabels, taskLabels);
+      }));
+
+    });
   });
 
 });
