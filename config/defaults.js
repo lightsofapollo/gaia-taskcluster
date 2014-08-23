@@ -3,16 +3,18 @@ function env(name, defaultValue) {
 }
 
 module.exports = {
+  queueName: process.env.GAIA_TASKCLUSTER_QUEUE || null,
+
+  port: process.env.port || 60023,
 
   // location relative to the root of the tree where the task graph lives
   taskGraphPath: 'taskgraph.json',
 
   // graph level defaults
   graph: {
-    routing: env('TASKCLUSTER_ROUTING_KEY') + '.',
+    routes: [env('TASKCLUSTER_ROUTING_KEY')],
     tags: {},
-    metadata: {},
-    params: {}
+    metadata: {}
   },
 
   // task level defaults
@@ -20,7 +22,6 @@ module.exports = {
     provisionerId: env('TASKCLUSTER_PROVISIONER_ID', 'aws-provisioner'),
     workerType: env('TASKCLUSTER_WORKER_TYPE', 'v2'),
     retries: 5,
-    timeout: 180,
     tags: {
       branch: '{{branch}}',
       commit: '{{commit}}',
@@ -60,7 +61,10 @@ module.exports = {
   treeherder: {
     // where to pull the treeherder configuration projects from...
     // XXX: Soon this will be a store
-    configUri: env('TREEHEDER_PROJECT_CONFIG_URI')
+    configUri: env('TREEHEDER_PROJECT_CONFIG_URI'),
+
+    // base location for treeherder services...
+    baseUrl: env('TREEHERDER_URL') || ''
   },
 
   github: {

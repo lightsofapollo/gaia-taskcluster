@@ -59,9 +59,10 @@
     "octokit": "git://github.com/lightsofapollo/octokit.js#real-errors",
     "promise": "~4.0.0",
     "proxied-promise-object": "~0.1.0",
+    "slugid": "^1.0.2",
     "superagent-promise": "^0.1.0",
     "taskcluster-base": "^0.4.6",
-    "taskcluster-client": "^0.14.6",
-    "taskcluster-task-factory": "^0.6.1"
+    "taskcluster-client": "^0.15.1",
+    "taskcluster-task-factory": "^0.6.3"
   }
 }

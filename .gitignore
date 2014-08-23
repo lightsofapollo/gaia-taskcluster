@@ -1,3 +1,4 @@
 /projects.json
 /.env
 /node_modules
+/gaia-taskcluster.conf.json

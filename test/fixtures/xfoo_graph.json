@@ -7,7 +7,7 @@
   },
   "tasks": [
     {
-      "label": "test_local_graph",
+      "label": "xfoo",
       "task": {
         "metadata": {
           "name": "Local example graph test",
@@ -21,10 +21,11 @@
         },
         "tags": {
           "treeherderProject": "taskcluster-integration",
-          "treeherderSymbol": "TCT"
+          "treeherderSymbol": "XFOO"
         }
       }
     }
   ]
 }
+
 

@@ -1,1 +1,13 @@
-module.exports = {};
+module.exports = {
+
+  githubTest: {
+    token: process.env.GH_TESTING_TOKEN,
+    user: process.env.GH_TESTING_USER,
+    repo: process.env.GH_TESTING_REPO,
+  },
+
+  treeherder: {
+    // This is the default url for the treeherder vagrant
+    baseUrl: 'http://192.168.33.10/api/'
+  }
+};

@@ -8,6 +8,7 @@ var prContent = require('../lib/github/pr_content');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 var merge = require('deap').merge;
 var jsTemplate = require('json-templater/object');
+var slugid = require('slugid');
 
 module.exports = function(runtime) {
   var TASKGRAPH_PATH = runtime.taskGraphPath;
@@ -33,9 +34,6 @@ module.exports = function(runtime) {
       return
     }
 
-    console.log(JSON.stringify(pullRequest, null, 2));
-    console.log('merge_sha from pr', pullRequest.mergeable);
-
     var userName = repository.owner.login;
     var repoName = repository.name;
     var number = pullRequest.number;
@@ -53,34 +51,37 @@ module.exports = function(runtime) {
     }
 
     var graph = JSON.parse(yield prContent(
-      runtime.github,
+      runtime.githubApi,
       pullRequest,
       TASKGRAPH_PATH
     ));
 
+    runtime.log('fetched graph', { graph: graph, pullRequest: pullRequest });
+
     // owner email address note that we use who submitted the pr not who
     // authored the code originally
-    var owner = yield ghOwner(runtime.github, body.sender.login);
+    var owner = yield ghOwner(runtime.githubApi, body.sender.login);
 
-    var source = runtimegce.github.rawUrl + '/' +
+    var source = runtime.github.rawUrl + '/' +
       pullRequest.head.repo.full_name + '/' +
       pullRequest.head.ref + '/' +
       TASKGRAPH_PATH;
 
     var params = {
-      githubBranch: pullRequest.base.ref,
+      branch: pullRequest.base.ref,
       githubRepo: repoName,
       githubUser: userName,
       // ensure these are always strings to avoid errors from tc
       githubPullRequest: String(number),
-      githubCommit: String(commit),
-      githubRef: 'refs/pull/' + number + '/merge',
+      commit: String(commit),
+      commitRef: 'refs/pull/' + number + '/merge',
       treeherderRepo: project.name
     };
 
-    graph = jsTemplate(merge(
+    graph = merge(
       // remember these values _override_ values set elsewhere
       {
+        scopes: project.graphScopes,
         metadata: {
           owner: owner,
           source: source,
@@ -91,21 +92,23 @@ module.exports = function(runtime) {
       graph,
 
       // defaults set by config.js
-      runtimegce.graph
-    ), params);
+      runtime.graph
+    );
 
     graph.tasks = graph.tasks.map(function(task) {
-      return merge(
+      var out = merge(
         // strict overrides
         {
-          tags: { githubPullRequest: String(number) },
-          metadata: {
-            owner: owner,
-            source: source
-          },
-          payload: {
-            env: {
-              GH_PULL_NUMBER: number
+          task: {
+            tags: { githubPullRequest: String(number) },
+            metadata: {
+              owner: owner,
+              source: source
+            },
+            payload: {
+              env: {
+                GH_PULL_NUMBER: number
+              }
             }
           }
         },
@@ -114,13 +117,18 @@ module.exports = function(runtime) {
         task,
 
         // defaults set by config.js
-        runtimegce.task
+        { task: runtime.task }
       );
+      console.log(JSON.stringify(out, null, 2));
+      return out;
     });
+
+    graph = jsTemplate(graph, params);
 
     var treeherderRepo = new TreeherderRepo(project.name, {
       consumerKey: project.consumerKey,
-      consumerSecret: project.consumerSecret
+      consumerSecret: project.consumerSecret,
+      baseUrl: runtime.treeherder.baseUrl
     });
 
     // build the treeherder resultset
@@ -128,7 +136,7 @@ module.exports = function(runtime) {
       user: userName,
       repo: repoName,
       number: number,
-      token: runtimegce.github.token
+      token: runtime.github.token
     });
 
     resultset.author = owner;
@@ -139,10 +147,24 @@ module.exports = function(runtime) {
     // finally use the factory to fill in any required fields that have
     // defaults...
     graph = GraphFactory.create(graph);
-    var graphStatus = yield runtime.graph.createTaskGraph(GraphFactory.create(graph));
+    var id = slugid.v4();
+    runtime.log('create graph', { id: id, graph: graph });
+
+    try {
+      var graphStatus =
+        yield runtime.scheduler.createTaskGraph(id, GraphFactory.create(graph));
+    } catch (e) {
+      // TODO: Handle graph syntax errors and report them to github.
+      runtime.log('create task graph error', {
+        message: e.message,
+        body: e.body
+      });
+      throw e;
+    }
+
     this.status = 201;
     this.body = {
-      taskGraphId: graphStatus.status.taskGraphId,
+      taskGraphId: id,
       treeherderProject: project.name,
       treeherderRevisionHash: commit
     };

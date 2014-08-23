@@ -1,35 +1,42 @@
 suite('POST /github - pull request events', function() {
   this.timeout('100s');
 
-  // github target repository...
-  var GH_USER = 'taskcluster';
-  var GH_REPO = 'github-graph-example';
-  var GH_TOKEN = process.env.GITHUB_OAUTH_TOKEN;
-
   var TreeherderProject = require('mozilla-treeherder/project');
   var Github = require('github-api');
 
   var fs = require('fs');
   var co = require('co');
-  var appFactory = require('../');
+  var appFactory = require('../lib/app');
+  var config = require('../config/test');
   var ngrokify = require('ngrok-my-server');
   var githubPr = require('testing-github/pullrequest');
   var githubFork = require('testing-github/fork');
   var gh; // generic github-api interface
   var ghRepo; // github repository interface
 
-  if (!GH_TOKEN) {
+  // Treeherder project...
+  var thProject = new TreeherderProject('taskcluster-integration', {
+    baseUrl: config.treeherder.baseUrl
+  });
+
+  if (!config.githubTest.token) {
     test.skip(
-      'This suite is a full integration test and requires GITHUB_OAUTH_TOKEN'
+      'This suite is a full integration test and requires GH_TESTING_TOKEN'
     );
     return;
   }
+
+  // github target repository...
+  var GH_USER = 'taskcluster';
+  var GH_REPO = 'github-graph-example';
+  var GH_TOKEN = config.githubTest.token;
+
   // start server and expose a public ip address...
   var url;
   var server;
   var app;
   suiteSetup(co(function*() {
-    app = appFactory();
+    app = yield appFactory(config);
     app.middleware.unshift(require('../test/koa_record')(app));
 
     server = app.listen(0);
@@ -64,7 +71,7 @@ suite('POST /github - pull request events', function() {
   var project;
   suiteSetup(co(function*() {
     // find the global test project for taskcluster
-    var baseProject = yield app.services.projects.findByRepo(
+    var baseProject = yield app.runtime.projects.findByRepo(
       GH_USER,
       GH_REPO
     );
@@ -85,7 +92,7 @@ suite('POST /github - pull request events', function() {
     project.user = forkedUser;
     project.repo = forkedRepo;
 
-    yield app.services.projects.add(project);
+    yield app.runtime.projects.add(project);
   }));
 
   suiteTeardown(function deleteHook() {
@@ -121,23 +128,25 @@ suite('POST /github - pull request events', function() {
     });
 
     test('graph posted to taskcluster', co(function * () {
-      var expectedLabels = Object.keys(graphFixture.tasks);
+      var expectedIds = graphFixture.tasks.map(function(task) {
+        return task.taskId;
+      });
 
-      var graph = app.services.graph;
+      var graph = app.runtime.scheduler;
       var graphId = ctx.body.taskGraphId;
 
-      var graphStatus = yield graph.inspectTaskGraph(graphId);
-      var taskLabels = Object.keys(graphStatus.tasks);
-
-      assert.deepEqual(expectedLabels, taskLabels);
+      var graphStatus = yield graph.inspect(graphId);
+      var taskIds = graphStatus.tasks.map(function(task) {
+        return task.taskIds;
+      });
+      assert.deepEqual(expectedIds, taskIds);
     }));
 
     test('project creates resultset', co(function* () {
       // XXX: Replace with some test/project constants?
-      var project = new TreeherderProject('taskcluster-integration');
       var revHash = ctx.body.treeherderRevisionHash;
 
-      var res = yield project.getResultset();
+      var res = yield thProject.getResultset();
       var items = res.results.filter(function(item) {
         // calculated revision hash based on the pull request is a
         // match
@@ -167,10 +176,9 @@ suite('POST /github - pull request events', function() {
 
       test('updated project resultsets', co(function* () {
         // XXX: Replace with some test/project constants?
-        var project = new TreeherderProject('taskcluster-integration');
         var revHash = ctx.body.treeherderRevisionHash;
 
-        var res = yield project.getResultset();
+        var res = yield thProject.getResultset();
         var items = res.results.filter(function(item) {
           // calculated revision hash based on the pull request is a
           // match
@@ -186,10 +194,10 @@ suite('POST /github - pull request events', function() {
       test('graph posted to taskcluster', co(function * () {
         var expectedLabels = Object.keys(graphFixture.tasks);
 
-        var graph = app.services.graph;
+        var graph = app.runtime.scheduler;
         var graphId = ctx.body.taskGraphId;
 
-        var graphStatus = yield graph.inspectTaskGraph(graphId);
+        var graphStatus = yield graph.inspect(graphId);
         var taskLabels = Object.keys(graphStatus.tasks);
 
         assert.deepEqual(expectedLabels, taskLabels);
