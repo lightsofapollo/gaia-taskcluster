@@ -9,8 +9,8 @@ var debug = require('debug')('gaia-treeherder/github/push');
 var jsTemplate = require('json-templater/object');
 var slugid = require('slugid');
 
-module.exports = function(services) {
-  var TASKGRAPH_PATH = services.taskGraphPath;
+module.exports = function(runtime) {
+  var TASKGRAPH_PATH = runtime.taskGraphPath;
 
   return function* () {
     var body = this.request.body;
@@ -35,7 +35,7 @@ module.exports = function(services) {
     var repoName = repository.name;
     var commit = body.head_commit.id;
 
-    var project = yield services.projects.findByRepo(
+    var project = yield runtime.projects.findByRepo(
       userName,
       repoName,
       branch
@@ -43,7 +43,7 @@ module.exports = function(services) {
 
     // owner email address note that we use who submitted the pr not who
     // authored the code originally
-    var owner = yield ghOwner(services.github, body.pusher.name);
+    var owner = yield ghOwner(runtime.githubApi, body.pusher.name);
 
     if (!project) {
       return this.throw(400, 'Cannot handle requests for this github project');
@@ -60,14 +60,19 @@ module.exports = function(services) {
     // submit the resultset to treeherder
     var thRepository = new TreeherderProject(project.name, {
       consumerKey: project.consumerKey,
-      consumerSecret: project.consumerSecret
+      consumerSecret: project.consumerSecret,
+      baseUrl: runtime.treeherder.baseUrl
     });
 
     yield thRepository.postResultset([resultset]);
 
-    var graph = JSON.parse(yield pushContent(services.github, body, TASKGRAPH_PATH));
+    var graph = JSON.parse(
+      yield pushContent(runtime.githubApi, body, TASKGRAPH_PATH)
+    );
 
-    var source = services.config.github.rawUrl + '/' +
+    runtime.log('fetched graph', { graph: graph, push: body });
+
+    var source = runtime.github.rawUrl + '/' +
       repository.owner.name + '/' +
       repository.name + '/' +
       branch + '/' +
@@ -83,9 +88,10 @@ module.exports = function(services) {
       treeherderRepo: project.name
     }
 
-    graph = jsTemplate(merge(
+    graph = merge(
       // remember these values _override_ values set elsewhere
       {
+        scopes: project.graphScopes,
         metadata: {
           owner: owner,
           source: source,
@@ -96,34 +102,43 @@ module.exports = function(services) {
       graph,
 
       // defaults set by config.js
-      services.config.graph
-    ), params);
+      runtime.graph
+    );
 
     graph.tasks = graph.tasks.map(function(task) {
       return merge(
         // strict overrides
         {
-          metadata: {
-            owner: owner,
-            source: source
-          },
+          task: {
+            metadata: {
+              owner: owner,
+              source: source
+            },
+          }
         },
 
         // original task in the graph
         task,
 
         // defaults set by config.js
-        services.config.task
+        { task: runtime.task }
       );
     });
 
-    graph = GraphFactory.create(graph);
+    graph = GraphFactory.create(jsTemplate(graph, params));
+    var createdTasks = graph.tasks.map(function(task) {
+      return task.taskId;
+    });
+
     var id = slugid.v4();
+    runtime.log('create graph', { id: id, graph: graph });
+
     var graphStatus =
-      yield runtime.scheduler.createTaskGraph(id, GraphFactory.create(graph));
+      yield runtime.scheduler.createTaskGraph(id, graph);
 
     this.body = {
       taskGraphId: id,
+      taskIds: createdTasks,
       treeherderProject: project.name,
       treeherderRevisionHash: commit
     };

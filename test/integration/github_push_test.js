@@ -2,38 +2,44 @@ suite('github', function() {
   this.timeout('100s');
 
   var TreeherderProject = require('mozilla-treeherder/project');
-
-  // github target repository...
-  var GH_USER = 'taskcluster';
-  var GH_REPO = 'github-graph-example';
-  var GH_TOKEN = process.env.GITHUB_OAUTH_TOKEN;
-
   var Github = require('github-api');
 
+  var returnField = require('./helper/return_field');
+  var fs = require('fs');
   var co = require('co');
   var uuid = require('uuid');
-  var fs = require('fs');
-  var appFactory = require('../');
+  var appFactory = require('../../lib/app');
+  var config = require('../../config/test');
   var ngrokify = require('ngrok-my-server');
+  var githubPr = require('testing-github/pullrequest');
   var githubFork = require('testing-github/fork');
   var gh; // generic github-api interface
   var ghRepo; // github repository interface
 
-  if (!GH_TOKEN) {
+  // Treeherder project...
+  var thProject = new TreeherderProject('taskcluster-integration', {
+    baseUrl: config.treeherder.baseUrl
+  });
+
+  if (!config.githubTest.token) {
     test.skip(
-      'This suite is a full integration test and requires GITHUB_OAUTH_TOKEN'
+      'This suite is a full integration test and requires GH_TESTING_TOKEN'
     );
     return;
   }
 
+  // github target repository...
+  var GH_USER = 'taskcluster';
+  var GH_REPO = 'github-graph-example';
+  var GH_TOKEN = config.githubTest.token;
 
   // start server and expose a public ip address...
   var url;
   var server;
   var app;
   suiteSetup(co(function*() {
-    app = appFactory();
-    app.middleware.unshift(require('../test/koa_record')(app));
+    app = yield appFactory(config);
+    app.middleware.unshift(require('./helper/koa_record')(app));
 
     server = app.listen(0);
     // then make it public
@@ -44,19 +50,21 @@ suite('github', function() {
   suiteSetup(co(function* () {
     gh = new Github({ token: GH_TOKEN });
     ghRepo = yield githubFork(gh, GH_USER, GH_REPO);
+    console.log('herer');
   }));
 
   // create a branch
   var branch = 'branch-' + uuid.v4();
-  suiteSetup(function() {
-    return ghRepo.branch('plain', branch);
-  });
+  suiteSetup(co(function* () {
+    yield ghRepo.branch('plain', branch);
+    console.log('herer2');
+  }));
 
   // create a project for this test
   var project;
   suiteSetup(co(function*() {
     // find the global test project for taskcluster
-    var baseProject = yield app.services.projects.findByRepo(
+    var baseProject = yield app.runtime.projects.findByRepo(
       GH_USER,
       GH_REPO
     );
@@ -77,7 +85,8 @@ suite('github', function() {
     project.user = forkedUser;
     project.repo = forkedRepo;
 
-    yield app.services.projects.add(project);
+    yield app.runtime.projects.add(project);
+    console.log('herer3');
   }));
 
   // add some hooks to the repository...
@@ -85,15 +94,21 @@ suite('github', function() {
   suiteSetup(co(function* () {
     // XXX: This should be part of the overall application rather then
     // hardcoded.
-    var hook = yield ghRepo.createHook({
-      name: 'web',
-      events: ['push'],
-      config: {
-        // XXX: We ideally should just have one single github entrypoint.
-        url: url + '/github',
-        content_type: 'json'
-      }
-    });
+    try {
+      var hook = yield ghRepo.createHook({
+        name: 'web',
+        events: ['push'],
+        config: {
+          // XXX: We ideally should just have one single github entrypoint.
+          url: url + '/github',
+          content_type: 'json'
+        }
+      });
+    } catch (e) {
+      console.log(e, '<<<!!');
+      throw e;
+
+    }
     hookId = hook.id;
   }));
 
@@ -103,11 +118,11 @@ suite('github', function() {
 
   suite('push with graph', function() {
     var fixturePath =
-      __dirname + '/../test/fixtures/example_graph.json';
+      __dirname + '/../fixtures/example_graph.json';
 
     var ctx;
     suiteSetup(co(function*() {
-      var github = app.services.github;
+      var github = app.runtime.githubApi;
 
       // figure out which repository to push to
       var user = yield github.getUser().getInfo();
@@ -124,25 +139,21 @@ suite('github', function() {
     });
 
     test('graph posted to taskcluster', co(function * () {
-      var expectedGraph = require('../test/fixtures/example_graph');
-      var expectedLabels = Object.keys(expectedGraph.tasks);
+      var expectedTaskIds = ctx.body.taskIds;
 
-      var graph = app.services.graph;
+      var graph = app.runtime.scheduler;
       var graphId = ctx.body.taskGraphId;
 
-      var graphStatus = yield graph.inspectTaskGraph(graphId);
-      var taskLabels = Object.keys(graphStatus.tasks);
+      var graphStatus = yield graph.inspect(graphId);
+      var taskIds = graphStatus.tasks.map(returnField('taskId'))
 
-      assert.deepEqual(expectedLabels, taskLabels);
+      assert.deepEqual(expectedTaskIds, taskIds);
     }));
 
     test('project creates resultset', co(function*() {
       var revHash = ctx.request.body.head_commit.id;
 
-      // XXX: Replace with some test/project constants?
-      var project = new TreeherderProject('taskcluster-integration');
-
-      var res = yield project.getResultset();
+      var res = yield thProject.getResultset();
       var item = res.results.some(function(item) {
         // calculated revision hash based on the pull request is a
         // match
