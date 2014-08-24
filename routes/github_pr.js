@@ -96,7 +96,7 @@ module.exports = function(runtime) {
     );
 
     graph.tasks = graph.tasks.map(function(task) {
-      var out = merge(
+      var task = merge(
         // strict overrides
         {
           task: {
@@ -119,7 +119,9 @@ module.exports = function(runtime) {
         // defaults set by config.js
         { task: runtime.task }
       );
-      return out;
+      task.task.routes = task.task.routes || [];
+      task.task.routes.push(runtime.route);
+      return task;
     });
 
     graph = GraphFactory.create(jsTemplate(graph, params));

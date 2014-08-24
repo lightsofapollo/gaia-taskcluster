@@ -1,9 +1,11 @@
 function env(name, defaultValue) {
   return process.env[name] || defaultValue || '';
-}
+};
+
+var route = env('GAIA_TASKCLUSTER_ROUTING', 'gaia-taskcluster');
 
 module.exports = {
-  queueName: process.env.GAIA_TASKCLUSTER_QUEUE || null,
+  route: route,
 
   port: process.env.port || 60023,
 
@@ -12,7 +14,7 @@ module.exports = {
 
   // graph level defaults
   graph: {
-    routes: [env('TASKCLUSTER_ROUTING_KEY')],
+    routes: [route],
     tags: {},
     metadata: {}
   },
@@ -50,11 +52,15 @@ module.exports = {
   },
 
   taskcluster: {
-    // amqp connection string...
-    amqpUri: '',
-    credentials: {
-      clientId: process.env.TASKCLUSTER_CLIENT_ID || '',
-      accessToken: process.env.TASKCLUSTER_ACCESS_TOKEN || ''
+    listener: {
+      queueName: process.env.GAIA_TASKCLUSTER_QUEUE || null,
+      connectionString: env('TASKCLUSTER_AMQP_URL'),
+      prefetch: 100
+    },
+
+    client: {
+      clientId: env('TASKCLUSTER_CLIENT_ID'),
+      accessToken: env('TASKCLUSTER_ACCESS_TOKEN')
     }
   },
 

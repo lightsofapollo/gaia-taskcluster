@@ -79,12 +79,12 @@ module.exports = function(runtime) {
       TASKGRAPH_PATH;
 
     var params = {
-      githubBranch: branch,
+      branch: branch,
       githubRepo: repoName,
       githubUser: userName,
       // ensure these are always strings to avoid errors from tc
-      githubCommit: String(commit),
-      githubRef: body.ref,
+      commit: String(commit),
+      commitRef: body.ref,
       treeherderRepo: project.name
     }
 
@@ -106,7 +106,7 @@ module.exports = function(runtime) {
     );
 
     graph.tasks = graph.tasks.map(function(task) {
-      return merge(
+      var task = merge(
         // strict overrides
         {
           task: {
@@ -123,6 +123,9 @@ module.exports = function(runtime) {
         // defaults set by config.js
         { task: runtime.task }
       );
+      task.task.routes = task.task.routes || [];
+      task.task.routes.push(runtime.route);
+      return task;
     });
 
     graph = GraphFactory.create(jsTemplate(graph, params));

@@ -8,6 +8,7 @@ module.exports = {
   },
 
   treeherder: {
+    configUri: __dirname + '/../projects.json',
     // This is the default url for the treeherder vagrant
     baseUrl: 'http://192.168.33.10/api/'
   }
