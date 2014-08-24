@@ -4,10 +4,11 @@ suite('POST /github - pull request events', function() {
   var TreeherderProject = require('mozilla-treeherder/project');
   var Github = require('github-api');
 
+  var returnField = require('./helper/return_field');
   var fs = require('fs');
   var co = require('co');
-  var appFactory = require('../lib/app');
-  var config = require('../config/test');
+  var appFactory = require('../../lib/app');
+  var config = require('../../config/test');
   var ngrokify = require('ngrok-my-server');
   var githubPr = require('testing-github/pullrequest');
   var githubFork = require('testing-github/fork');
@@ -37,7 +38,7 @@ suite('POST /github - pull request events', function() {
   var app;
   suiteSetup(co(function*() {
     app = yield appFactory(config);
-    app.middleware.unshift(require('../test/koa_record')(app));
+    app.middleware.unshift(require('./helper/koa_record')(app));
 
     server = app.listen(0);
     // then make it public
@@ -101,7 +102,7 @@ suite('POST /github - pull request events', function() {
 
   suite('newly added graph', function() {
     var pr, ctx;
-    var graphFixture = require('../test/fixtures/example_graph.json');
+    var graphFixture = require('../fixtures/example_graph');
 
     suiteSetup(co(function*() {
       // issue the pull request
@@ -128,17 +129,12 @@ suite('POST /github - pull request events', function() {
     });
 
     test('graph posted to taskcluster', co(function * () {
-      var expectedIds = graphFixture.tasks.map(function(task) {
-        return task.taskId;
-      });
-
+      var expectedIds = ctx.body.taskIds;
       var graph = app.runtime.scheduler;
       var graphId = ctx.body.taskGraphId;
 
       var graphStatus = yield graph.inspect(graphId);
-      var taskIds = graphStatus.tasks.map(function(task) {
-        return task.taskIds;
-      });
+      var taskIds = graphStatus.tasks.map(returnField('taskId'));
       assert.deepEqual(expectedIds, taskIds);
     }));
 
@@ -160,7 +156,7 @@ suite('POST /github - pull request events', function() {
     }));
 
     suite('updated graph', function() {
-      var graphFixture = require('../test/fixtures/xfoo_graph.json');
+      var graphFixture = require('../fixtures/xfoo_graph.json');
       suiteSetup(co(function*() {
         // update the task graph
         var commit = yield pr.fork.write(
@@ -192,18 +188,17 @@ suite('POST /github - pull request events', function() {
       }));
 
       test('graph posted to taskcluster', co(function * () {
-        var expectedLabels = Object.keys(graphFixture.tasks);
-
+        var expectedTaskIds = ctx.body.taskIds;
         var graph = app.runtime.scheduler;
         var graphId = ctx.body.taskGraphId;
 
         var graphStatus = yield graph.inspect(graphId);
-        var taskLabels = Object.keys(graphStatus.tasks);
-
-        assert.deepEqual(expectedLabels, taskLabels);
+        var taskIds = graphStatus.tasks.map(returnField('taskId'))
+        assert.deepEqual(expectedTaskIds, taskIds);
       }));
 
     });
   });
 
 });
+

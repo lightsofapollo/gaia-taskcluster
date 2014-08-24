@@ -119,11 +119,13 @@ module.exports = function(runtime) {
         // defaults set by config.js
         { task: runtime.task }
       );
-      console.log(JSON.stringify(out, null, 2));
       return out;
     });
 
-    graph = jsTemplate(graph, params);
+    graph = GraphFactory.create(jsTemplate(graph, params));
+    var createdTasks = graph.tasks.map(function(task) {
+      return task.taskId;
+    });
 
     var treeherderRepo = new TreeherderRepo(project.name, {
       consumerKey: project.consumerKey,
@@ -146,13 +148,12 @@ module.exports = function(runtime) {
 
     // finally use the factory to fill in any required fields that have
     // defaults...
-    graph = GraphFactory.create(graph);
     var id = slugid.v4();
     runtime.log('create graph', { id: id, graph: graph });
 
     try {
       var graphStatus =
-        yield runtime.scheduler.createTaskGraph(id, GraphFactory.create(graph));
+        yield runtime.scheduler.createTaskGraph(id, graph);
     } catch (e) {
       // TODO: Handle graph syntax errors and report them to github.
       runtime.log('create task graph error', {
@@ -165,6 +166,7 @@ module.exports = function(runtime) {
     this.status = 201;
     this.body = {
       taskGraphId: id,
+      taskIds: createdTasks,
       treeherderProject: project.name,
       treeherderRevisionHash: commit
     };
