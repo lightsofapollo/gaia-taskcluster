@@ -3,14 +3,15 @@ var treeherderPulls = require('mozilla-treeherder/github').pull;
 var TreeherderRepo = require('mozilla-treeherder/project');
 
 var GraphFactory = require('taskcluster-task-factory/graph');
-var ghOwner = require('../github/owner');
-var prContent = require('../github/pr_content');
+var ghOwner = require('../lib/github/owner');
+var prContent = require('../lib/github/pr_content');
 var debug = require('debug')('gaia-treeherder/github/pull_request');
 var merge = require('deap').merge;
+var jsTemplate = require('json-templater/object');
+var slugid = require('slugid');
 
-module.exports = function(services) {
-
-  var TASKGRAPH_PATH = services.config.taskGraphPath;
+module.exports = function(runtime) {
+  var TASKGRAPH_PATH = runtime.taskGraphPath;
 
   return function* () {
     if (!this.request.body) {
@@ -39,7 +40,7 @@ module.exports = function(services) {
     // current commit in the pull request important for status commit api
     var commit = pullRequest.head.sha;
 
-    var project = yield services.projects.findByRepo(
+    var project = yield runtime.projects.findByRepo(
       userName,
       repoName,
       'pull request' // XXX: 'pull request' is not a real branch but a hack
@@ -50,75 +51,88 @@ module.exports = function(services) {
     }
 
     var graph = JSON.parse(yield prContent(
-      services.github,
+      runtime.githubApi,
       pullRequest,
       TASKGRAPH_PATH
     ));
 
+    runtime.log('fetched graph', { graph: graph, pullRequest: pullRequest });
+
     // owner email address note that we use who submitted the pr not who
     // authored the code originally
-    var owner = yield ghOwner(services.github, body.sender.login);
+    var owner = yield ghOwner(runtime.githubApi, body.sender.login);
 
-    var source = services.config.github.rawUrl + '/' +
+    var source = runtime.github.rawUrl + '/' +
       pullRequest.head.repo.full_name + '/' +
       pullRequest.head.ref + '/' +
       TASKGRAPH_PATH;
 
+    var params = {
+      branch: pullRequest.base.ref,
+      githubRepo: repoName,
+      githubUser: userName,
+      // ensure these are always strings to avoid errors from tc
+      githubPullRequest: String(number),
+      commit: String(commit),
+      commitRef: 'refs/pull/' + number + '/merge',
+      treeherderRepo: project.name
+    };
+
     graph = merge(
       // remember these values _override_ values set elsewhere
       {
+        scopes: project.graphScopes,
         metadata: {
           owner: owner,
           source: source,
         },
-        // we attempt to limit the amount of graph configuration here but many
-        // defaults are set in config.js
-        params: {
-          githubBranch: pullRequest.base.ref,
-          githubRepo: repoName,
-          githubUser: userName,
-          // ensure these are always strings to avoid errors from tc
-          githubPullRequest: String(number),
-          githubCommit: String(commit),
-          githubRef: 'refs/pull/' + number + '/merge',
-          treeherderRepo: project.name
-        }
       },
 
       // original graph from github
       graph,
 
       // defaults set by config.js
-      services.config.graph
+      runtime.graph
     );
 
-    Object.keys(graph.tasks).forEach(function(key) {
-      graph.tasks[key].task = merge(
+    graph.tasks = graph.tasks.map(function(task) {
+      var task = merge(
         // strict overrides
         {
-          tags: { githubPullRequest: String(number) },
-          metadata: {
-            owner: owner,
-            source: source
-          },
-          payload: {
-            env: {
-              GH_PULL_NUMBER: number
+          task: {
+            tags: { githubPullRequest: String(number) },
+            metadata: {
+              owner: owner,
+              source: source
+            },
+            payload: {
+              env: {
+                GH_PULL_NUMBER: number
+              }
             }
           }
         },
 
         // original task in the graph
-        graph.tasks[key].task,
+        task,
 
         // defaults set by config.js
-        services.config.task
+        { task: runtime.task }
       );
+      task.task.routes = task.task.routes || [];
+      task.task.routes.push(runtime.route);
+      return task;
+    });
+
+    graph = GraphFactory.create(jsTemplate(graph, params));
+    var createdTasks = graph.tasks.map(function(task) {
+      return task.taskId;
     });
 
     var treeherderRepo = new TreeherderRepo(project.name, {
       consumerKey: project.consumerKey,
-      consumerSecret: project.consumerSecret
+      consumerSecret: project.consumerSecret,
+      baseUrl: runtime.treeherder.baseUrl
     });
 
     // build the treeherder resultset
@@ -126,7 +140,7 @@ module.exports = function(services) {
       user: userName,
       repo: repoName,
       number: number,
-      token: services.config.github.token
+      token: runtime.github.token
     });
 
     resultset.author = owner;
@@ -136,11 +150,25 @@ module.exports = function(services) {
 
     // finally use the factory to fill in any required fields that have
     // defaults...
-    graph = GraphFactory.create(graph);
-    var graphStatus = yield services.graph.createTaskGraph(GraphFactory.create(graph));
+    var id = slugid.v4();
+    runtime.log('create graph', { id: id, graph: graph });
+
+    try {
+      var graphStatus =
+        yield runtime.scheduler.createTaskGraph(id, graph);
+    } catch (e) {
+      // TODO: Handle graph syntax errors and report them to github.
+      runtime.log('create task graph error', {
+        message: e.message,
+        body: e.body
+      });
+      throw e;
+    }
+
     this.status = 201;
     this.body = {
-      taskGraphId: graphStatus.status.taskGraphId,
+      taskGraphId: id,
+      taskIds: createdTasks,
       treeherderProject: project.name,
       treeherderRevisionHash: commit
     };

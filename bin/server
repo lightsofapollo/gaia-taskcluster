@@ -1,12 +1,22 @@
 #! /usr/bin/env node --harmony
 
-var port = process.env.PORT || 60023;
-var url = process.env.URL || 'http://localhost:' + port;
+var co = require('co');
+var appFactory = require('../lib/app');
+var program = require('commander');
+program.usage('./bin/server [options] <profile>');
+program.parse(process.argv);
 
-var server = require('../')();
-
-// configure a process.env.URL if one is not created for for us...
-console.log('server started %s', url);
-server.listen(port, function(err) {
-  console.log(err, 'STUFF');
+co(function* () {
+  var profile = program.args[0];
+  if (!profile) {
+    console.error('Profile must be passed <production|test>');
+    return process.exit(1);
+  }
+  // Load the correct profile based on argv.
+  var config = require('../config/' + profile);
+  var app = yield appFactory(config);
+  var server = yield app.listen.bind(app, config.port);
+  app.runtime.log('server listen', { port: config.port });
+})(function(err) {
+  if (err) throw err;
 });

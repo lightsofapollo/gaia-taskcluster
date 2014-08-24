@@ -2,13 +2,15 @@ var TreeherderProject = require('mozilla-treeherder/project');
 var TreehederGHFactory = require('mozilla-treeherder/factory/github');
 var GraphFactory = require('taskcluster-task-factory/graph');
 
-var pushContent = require('../github/push_content');
-var ghOwner = require('../github/owner');
+var pushContent = require('../lib/github/push_content');
+var ghOwner = require('../lib/github/owner');
 var merge = require('deap').merge;
 var debug = require('debug')('gaia-treeherder/github/push');
+var jsTemplate = require('json-templater/object');
+var slugid = require('slugid');
 
-module.exports = function(services) {
-  var TASKGRAPH_PATH = services.config.taskGraphPath;
+module.exports = function(runtime) {
+  var TASKGRAPH_PATH = runtime.taskGraphPath;
 
   return function* () {
     var body = this.request.body;
@@ -33,7 +35,7 @@ module.exports = function(services) {
     var repoName = repository.name;
     var commit = body.head_commit.id;
 
-    var project = yield services.projects.findByRepo(
+    var project = yield runtime.projects.findByRepo(
       userName,
       repoName,
       branch
@@ -41,7 +43,7 @@ module.exports = function(services) {
 
     // owner email address note that we use who submitted the pr not who
     // authored the code originally
-    var owner = yield ghOwner(services.github, body.pusher.name);
+    var owner = yield ghOwner(runtime.githubApi, body.pusher.name);
 
     if (!project) {
       return this.throw(400, 'Cannot handle requests for this github project');
@@ -58,69 +60,88 @@ module.exports = function(services) {
     // submit the resultset to treeherder
     var thRepository = new TreeherderProject(project.name, {
       consumerKey: project.consumerKey,
-      consumerSecret: project.consumerSecret
+      consumerSecret: project.consumerSecret,
+      baseUrl: runtime.treeherder.baseUrl
     });
 
     yield thRepository.postResultset([resultset]);
 
-    var graph = JSON.parse(yield pushContent(services.github, body, TASKGRAPH_PATH));
+    var graph = JSON.parse(
+      yield pushContent(runtime.githubApi, body, TASKGRAPH_PATH)
+    );
 
-    var source = services.config.github.rawUrl + '/' +
+    runtime.log('fetched graph', { graph: graph, push: body });
+
+    var source = runtime.github.rawUrl + '/' +
       repository.owner.name + '/' +
       repository.name + '/' +
       branch + '/' +
       TASKGRAPH_PATH;
 
+    var params = {
+      branch: branch,
+      githubRepo: repoName,
+      githubUser: userName,
+      // ensure these are always strings to avoid errors from tc
+      commit: String(commit),
+      commitRef: body.ref,
+      treeherderRepo: project.name
+    }
+
     graph = merge(
       // remember these values _override_ values set elsewhere
       {
+        scopes: project.graphScopes,
         metadata: {
           owner: owner,
           source: source,
         },
-        // we attempt to limit the amount of graph configuration here but many
-        // defaults are set in config.js
-        params: {
-          githubBranch: branch,
-          githubRepo: repoName,
-          githubUser: userName,
-          // ensure these are always strings to avoid errors from tc
-          githubCommit: String(commit),
-          githubRef: body.ref,
-          treeherderRepo: project.name
-        }
       },
 
       // original graph from github
       graph,
 
       // defaults set by config.js
-      services.config.graph
+      runtime.graph
     );
 
-    Object.keys(graph.tasks).forEach(function(key) {
-      graph.tasks[key].task = merge(
+    graph.tasks = graph.tasks.map(function(task) {
+      var task = merge(
         // strict overrides
         {
-          metadata: {
-            owner: owner,
-            source: source
-          },
+          task: {
+            metadata: {
+              owner: owner,
+              source: source
+            },
+          }
         },
 
         // original task in the graph
-        graph.tasks[key].task,
+        task,
 
         // defaults set by config.js
-        services.config.task
+        { task: runtime.task }
       );
+      task.task.routes = task.task.routes || [];
+      task.task.routes.push(runtime.route);
+      return task;
     });
 
-    graph = GraphFactory.create(graph);
+    graph = GraphFactory.create(jsTemplate(graph, params));
+    var createdTasks = graph.tasks.map(function(task) {
+      return task.taskId;
+    });
 
-    var status = yield services.graph.createTaskGraph(graph);
+    var id = slugid.v4();
+    runtime.log('create graph', { id: id, graph: graph });
+
+    var graphStatus =
+      yield runtime.scheduler.createTaskGraph(id, graph);
+
     this.body = {
-      taskGraphId: status.status.taskGraphId,
+      taskGraphId: id,
+      taskIds: createdTasks,
       treeherderProject: project.name,
       treeherderRevisionHash: commit
     };
