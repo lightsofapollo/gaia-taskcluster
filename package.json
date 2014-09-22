@@ -62,7 +62,7 @@
     "slugid": "^1.0.2",
     "superagent-promise": "^0.1.0",
     "taskcluster-base": "^0.4.6",
-    "taskcluster-client": "^0.15.1",
+    "taskcluster-client": "^0.15.5",
     "taskcluster-task-factory": "^0.6.3"
   }
 }
