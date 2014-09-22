@@ -7,7 +7,7 @@ var route = env('GAIA_TASKCLUSTER_ROUTING', 'gaia-taskcluster');
 module.exports = {
   route: route,
 
-  port: process.env.port || 60023,
+  port: process.env.PORT || 60023,
 
   // location relative to the root of the tree where the task graph lives
   taskGraphPath: 'taskgraph.json',
