@@ -15,8 +15,8 @@ co(function* () {
   // Load the correct profile based on argv.
   var config = require('../config/' + profile);
   var app = yield appFactory(config);
-  var server = yield app.listen.bind(app, config.port);
-  app.runtime.log('server listen', { port: config.port });
+  var server = yield app.listen.bind(app, app.runtime.port);
+  app.runtime.log('server listen', { port: app.runtime.port });
 })(function(err) {
   if (err) throw err;
 });

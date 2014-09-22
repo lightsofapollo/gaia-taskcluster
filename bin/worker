@@ -60,6 +60,7 @@ co(function*() {
   ];
 
   var channel = yield runtime.listener.connect();
+  runtime.log('connected');
   channel.consume(runtime.listener._queueName, co(function* (msg) {
     try {
       var content = JSON.parse(msg.content);
@@ -77,7 +78,7 @@ co(function*() {
       channel.ack(msg);
     } catch (e) {
       runtime.log('worker consume error', { message: e.message, err: e });
-      channel.nack(msg); // this will retry the message...
+      channel.ack(msg); // this will retry the message...
     }
   }));
 })(function(err) {
