@@ -45,7 +45,7 @@ co(function*() {
 
   var runtime = yield createRuntime(require('../config/' + profile));
   var amqpUri = runtime.taskcluster.listener.connectionString ||
-                (yield runtime.queue.getAMQPConnectionString());
+                (yield runtime.queue.getAMQPConnectionString()).url;
 
   runtime.taskcluster.listener.connectionString = amqpUri;
   runtime.listener = new Listener(runtime.taskcluster.listener);
