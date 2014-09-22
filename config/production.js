@@ -1,5 +1,5 @@
 module.exports = {
   treeherder: {
-    baseUrl: 'http://treeherder.allizom.org/api/'
+    baseUrl: process.env.TREEHERDER_URL || 'https://treeherder.allizom.org/api/'
   }
 };
