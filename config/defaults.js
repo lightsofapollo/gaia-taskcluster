@@ -46,14 +46,14 @@ module.exports = {
         // Base details
         GITHUB_BASE_REPO: '{{githubBaseRepo}}',
         GITHUB_BASE_USER: '{{githubBaseUser}}',
-        GITHUB_BASE_GIT: 'https://github.com/{{githubBaseRepo}}/{{githubBaseUser}}',
+        GITHUB_BASE_GIT: 'https://github.com/{{githubBaseUser}}/{{githubBaseRepo}}',
         GITHUB_BASE_REV: '{{githubBaseRevision}}',
         GITHUB_BASE_BRANCH: '{{githubBaseBranch}}',
 
         // Head details
         GITHUB_HEAD_REPO: '{{githubHeadRepo}}',
         GITHUB_HEAD_USER: '{{githubHeadUser}}',
-        GITHUB_HEAD_GIT: 'https://github.com/{{githubHeadRepo}}/{{githubHeadUser}}',
+        GITHUB_HEAD_GIT: 'https://github.com/{{githubHeadUser}}/{{githubHeadRepo}}',
         GITHUB_HEAD_REV: '{{githubHeadRevision}}',
         GITHUB_HEAD_BRANCH: '{{githubHeadBranch}}',
       },
