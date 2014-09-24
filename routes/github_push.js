@@ -33,7 +33,7 @@ module.exports = function(runtime) {
 
     var userName = repository.owner.name;
     var repoName = repository.name;
-    var commit = body.head_commit.id;
+    var commit = String(body.head_commit.id);
 
     var project = yield runtime.projects.findByRepo(
       userName,
@@ -79,12 +79,19 @@ module.exports = function(runtime) {
       TASKGRAPH_PATH;
 
     var params = {
-      branch: branch,
-      githubRepo: repoName,
-      githubUser: userName,
-      // ensure these are always strings to avoid errors from tc
-      commit: String(commit),
-      commitRef: body.ref,
+      // Base repository details...
+      githubBaseRepo: repository.name,
+      githubBaseUser: repository.owner.name,
+      githubBaseRevision: commit,
+      githubBaseBranch: branch,
+
+      // Head repository details are the same as base for push.
+      githubHeadRepo: repository.name,
+      githubHeadUser: repository.owner.name,
+      githubHeadRevision: commit,
+      githubHeadBranch: branch,
+
+      // Treeherder details...
       treeherderRepo: project.name
     }
 

@@ -1,4 +1,5 @@
 module.exports = {
+  envType: 'test',
   github: { token: process.env.GH_TESTING_TOKEN },
 
   githubTest: {

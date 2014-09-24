@@ -1,5 +1,5 @@
 suite('POST /github - pull request events', function() {
-  this.timeout('100s');
+  this.timeout('200s');
 
   var TreeherderProject = require('mozilla-treeherder/project');
   var Github = require('github-api');

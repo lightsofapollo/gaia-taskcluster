@@ -1,5 +1,5 @@
-suite('github', function() {
-  this.timeout('100s');
+suite('github - push test', function() {
+  this.timeout('200s');
 
   var TreeherderProject = require('mozilla-treeherder/project');
   var Github = require('github-api');
@@ -50,14 +50,12 @@ suite('github', function() {
   suiteSetup(co(function* () {
     gh = new Github({ token: GH_TOKEN });
     ghRepo = yield githubFork(gh, GH_USER, GH_REPO);
-    console.log('herer');
   }));
 
   // create a branch
   var branch = 'branch-' + uuid.v4();
   suiteSetup(co(function* () {
     yield ghRepo.branch('plain', branch);
-    console.log('herer2');
   }));
 
   // create a project for this test
@@ -86,7 +84,6 @@ suite('github', function() {
     project.repo = forkedRepo;
 
     yield app.runtime.projects.add(project);
-    console.log('herer3');
   }));
 
   // add some hooks to the repository...
@@ -105,7 +102,6 @@ suite('github', function() {
         }
       });
     } catch (e) {
-      console.log(e, '<<<!!');
       throw e;
 
     }

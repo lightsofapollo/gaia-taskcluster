@@ -38,7 +38,7 @@ module.exports = function(runtime) {
     var repoName = repository.name;
     var number = pullRequest.number;
     // current commit in the pull request important for status commit api
-    var commit = pullRequest.head.sha;
+    var commit = String(pullRequest.head.sha);
 
     var project = yield runtime.projects.findByRepo(
       userName,
@@ -68,13 +68,16 @@ module.exports = function(runtime) {
       TASKGRAPH_PATH;
 
     var params = {
-      branch: pullRequest.base.ref,
-      githubRepo: repoName,
-      githubUser: userName,
-      // ensure these are always strings to avoid errors from tc
-      githubPullRequest: String(number),
-      commit: String(commit),
-      commitRef: 'refs/pull/' + number + '/merge',
+      githubBaseUser: repository.owner.login,
+      githubBaseRepo: repository.name,
+      githubBaseRevision: pullRequest.base.sha,
+      githubBaseBranch: pullRequest.base.ref,
+
+      githubHeadUser: pullRequest.head.user.login,
+      githubHeadRepo: pullRequest.head.repo.name,
+      githubHeadRevision: pullRequest.head.sha,
+      githubHeadBranch: pullRequest.head.ref,
+
       treeherderRepo: project.name
     };
 
@@ -107,7 +110,8 @@ module.exports = function(runtime) {
             },
             payload: {
               env: {
-                GH_PULL_NUMBER: number
+                GITHUB_PULL_NUMBER: number,
+                GITHUB_PULL_REQUEST: 1
               }
             }
           }

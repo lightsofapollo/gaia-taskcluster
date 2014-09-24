@@ -25,26 +25,37 @@ module.exports = {
     workerType: env('TASKCLUSTER_WORKER_TYPE', 'v2'),
     retries: 5,
     tags: {
-      branch: '{{branch}}',
-      commit: '{{commit}}',
-      commitRef: '{{commitRef}}',
-      repository: '{{repository}}',
+      githubBaseUser: '{{githubBaseUser}}',
+      githubBaseRepo: '{{githubBaseRepo}}',
+      githubBaseRevision: '{{githubBaseRev}}',
+      githubBaseBranch: '{{githubBaseBranch}}',
 
-      githubRepo: '{{githubRepo}}',
-      githubUser: '{{githubUser}}',
+      githubHeadUser: '{{githubHeadUser}}',
+      githubHeadRepo: '{{githubHeadRepo}}',
+      githubHeadRevision: '{{githubHeadRev}}}',
+      githubHeadBranch: '{{githubHeadBranch}}',
+
       treeherderRepo: '{{treeherderRepo}}'
     },
     metadata: {},
     payload: {
       env: {
         CI: true,
-        BRANCH: '{{branch}}',
-        COMMIT: '{{commit}}',
-        COMMIT_REF: '{{commitRef}}',
-        REPOSITORY: '{{repository}}',
+        GITHUB_PULL_REQUEST: '0',
 
-        GH_USER: '{{githubUser}}',
-        GH_REPO: '{{githubRepo}}'
+        // Base details
+        GITHUB_BASE_REPO: '{{githubBaseRepo}}',
+        GITHUB_BASE_USER: '{{githubBaseUser}}',
+        GITHUB_BASE_GIT: 'https://github.com/{{githubBaseRepo}}/{{githubBaseUser}}',
+        GITHUB_BASE_REV: '{{githubBaseRevision}}',
+        GITHUB_BASE_BRANCH: '{{githubBaseBranch}}',
+
+        // Head details
+        GITHUB_HEAD_REPO: '{{githubHeadRepo}}',
+        GITHUB_HEAD_USER: '{{githubHeadUser}}',
+        GITHUB_HEAD_GIT: 'https://github.com/{{githubHeadRepo}}/{{githubHeadUser}}',
+        GITHUB_HEAD_REV: '{{githubHeadRevision}}',
+        GITHUB_HEAD_BRANCH: '{{githubHeadBranch}}',
       },
       maxRunTime: 7200,
       features: {}
