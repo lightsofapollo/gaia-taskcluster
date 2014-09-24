@@ -27,12 +27,12 @@ module.exports = {
     tags: {
       githubBaseUser: '{{githubBaseUser}}',
       githubBaseRepo: '{{githubBaseRepo}}',
-      githubBaseRevision: '{{githubBaseRev}}',
+      githubBaseRevision: '{{githubBaseRevision}}',
       githubBaseBranch: '{{githubBaseBranch}}',
 
       githubHeadUser: '{{githubHeadUser}}',
       githubHeadRepo: '{{githubHeadRepo}}',
-      githubHeadRevision: '{{githubHeadRev}}}',
+      githubHeadRevision: '{{githubBaseRevision}}}',
       githubHeadBranch: '{{githubHeadBranch}}',
 
       treeherderRepo: '{{treeherderRepo}}'
