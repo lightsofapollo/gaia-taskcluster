@@ -19,9 +19,10 @@
             "ls"
           ]
         },
-        "tags": {
-          "treeherderProject": "taskcluster-integration",
-          "treeherderSymbol": "XFOO"
+        "extra": {
+          "treeherder": {
+            "symbol": "XFOO"
+          }
         }
       }
     }

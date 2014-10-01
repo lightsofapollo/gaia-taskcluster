@@ -130,8 +130,22 @@ module.exports = function(runtime) {
         // defaults set by config.js
         { task: runtime.task }
       );
+
       task.task.routes = task.task.routes || [];
+      task.task.scopes = task.task.scopes || [];
+
+      // Gaia scopes.
       task.task.routes.push(runtime.route);
+      task.task.scopes.push('queue:route:' + runtime.route);
+
+      // Treeherder
+      var treeherderRoute = runtime.taskclusterTreeherder.route + '.' +
+                            project.name + '.' +
+                            commit;
+
+      task.task.routes.push(treeherderRoute);
+      task.task.scopes.push(treeherderRoute);
+
       return task;
     });
 

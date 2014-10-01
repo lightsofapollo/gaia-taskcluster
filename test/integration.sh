@@ -1,7 +1,7 @@
 #! /bin/bash -vex
 
 ./node_modules/.bin/mocha \
-  routes/*_test.js \
+  test/integration/*_test.js \
   --harmony \
   --reporter spec
 

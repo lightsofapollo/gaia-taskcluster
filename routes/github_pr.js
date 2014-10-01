@@ -124,7 +124,17 @@ module.exports = function(runtime) {
         { task: runtime.task }
       );
       task.task.routes = task.task.routes || [];
+
+      // Gaia routes.
       task.task.routes.push(runtime.route);
+
+      // Treeherder
+      var treeherderRoute = runtime.taskclusterTreeherder.route + '.' +
+                            project.name + '.' +
+                            commit;
+
+      task.task.routes.push(treeherderRoute);
+
       return task;
     });
 

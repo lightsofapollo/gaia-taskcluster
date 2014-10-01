@@ -24,18 +24,18 @@ module.exports = {
     provisionerId: env('TASKCLUSTER_PROVISIONER_ID', 'aws-provisioner'),
     workerType: env('TASKCLUSTER_WORKER_TYPE', 'v2'),
     retries: 5,
-    tags: {
-      githubBaseUser: '{{githubBaseUser}}',
-      githubBaseRepo: '{{githubBaseRepo}}',
-      githubBaseRevision: '{{githubBaseRev}}',
-      githubBaseBranch: '{{githubBaseBranch}}',
+    extra: {
+      github: {
+        baseUser: '{{githubBaseUser}}',
+        baseRepo: '{{githubBaseRepo}}',
+        baseRevision: '{{githubBaseRevision}}',
+        baseBranch: '{{githubBaseBranch}}',
 
-      githubHeadUser: '{{githubHeadUser}}',
-      githubHeadRepo: '{{githubHeadRepo}}',
-      githubHeadRevision: '{{githubHeadRev}}}',
-      githubHeadBranch: '{{githubHeadBranch}}',
-
-      treeherderRepo: '{{treeherderRepo}}'
+        headUser: '{{githubHeadUser}}',
+        headRepo: '{{githubHeadRepo}}',
+        headRevision: '{{githubBaseRevision}}}',
+        headBranch: '{{githubHeadBranch}}',
+      }
     },
     metadata: {},
     payload: {
@@ -73,6 +73,10 @@ module.exports = {
       clientId: env('TASKCLUSTER_CLIENT_ID'),
       accessToken: env('TASKCLUSTER_ACCESS_TOKEN')
     }
+  },
+
+  taskclusterTreeherder: {
+    route: 'treeherder'
   },
 
   treeherder: {
