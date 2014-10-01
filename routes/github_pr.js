@@ -124,11 +124,9 @@ module.exports = function(runtime) {
         { task: runtime.task }
       );
       task.task.routes = task.task.routes || [];
-      task.task.scopes = task.task.scopes || [];
 
-      // Gaia scopes.
+      // Gaia routes.
       task.task.routes.push(runtime.route);
-      task.task.scopes.push('queue:route:' + runtime.route);
 
       // Treeherder
       var treeherderRoute = runtime.taskclusterTreeherder.route + '.' +
@@ -136,7 +134,6 @@ module.exports = function(runtime) {
                             commit;
 
       task.task.routes.push(treeherderRoute);
-      task.task.scopes.push(treeherderRoute);
 
       return task;
     });
