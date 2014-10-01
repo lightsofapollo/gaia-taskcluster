@@ -4,7 +4,7 @@
   "description": "gaia-taskcluster",
   "main": "index.js",
   "engines": {
-    "node": "0.11.x"
+    "node": "0.11.14"
   },
   "scripts": {
     "test": "./test/unit.sh",

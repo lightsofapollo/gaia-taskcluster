@@ -15,11 +15,6 @@ suite('POST /github - pull request events', function() {
   var gh; // generic github-api interface
   var ghRepo; // github repository interface
 
-  // Treeherder project...
-  var thProject = new TreeherderProject('taskcluster-integration', {
-    baseUrl: config.treeherder.baseUrl
-  });
-
   if (!config.githubTest.token) {
     test.skip(
       'This suite is a full integration test and requires GH_TESTING_TOKEN'
@@ -36,9 +31,14 @@ suite('POST /github - pull request events', function() {
   var url;
   var server;
   var app;
+  var thProject;
   suiteSetup(co(function*() {
     app = yield appFactory(config);
     app.middleware.unshift(require('./helper/koa_record')(app));
+
+    thProject = new TreeherderProject('taskcluster-integration', {
+      baseUrl: app.runtime.treeherder.baseUrl
+    });
 
     server = app.listen(0);
     // then make it public
@@ -74,7 +74,8 @@ suite('POST /github - pull request events', function() {
     // find the global test project for taskcluster
     var baseProject = yield app.runtime.projects.findByRepo(
       GH_USER,
-      GH_REPO
+      GH_REPO,
+      'master'
     );
 
     assert(baseProject, 'base project is required');

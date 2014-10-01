@@ -19,9 +19,10 @@
             "ls"
           ]
         },
-        "tags": {
-          "treeherderProject": "taskcluster-integration",
-          "treeherderSymbol": "TCT"
+        "extra": {
+          "treeherder": {
+            "symbol": "TCT"
+          }
         }
       }
     }
