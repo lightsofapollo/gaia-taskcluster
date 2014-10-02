@@ -101,7 +101,7 @@ suite('POST /github - pull request events', function() {
     return ghRepo.deleteHook(hookId);
   });
 
-  suite('newly added graph', function() {
+ suite('newly added graph', function() {
     var pr, ctx;
     var graphFixture = require('../fixtures/example_graph');
 
@@ -201,5 +201,66 @@ suite('POST /github - pull request events', function() {
     });
   });
 
+  suite('head has no graph base base does', function() {
+    var pr, ctx;
+    var graphFixture = require('../fixtures/example_graph');
+
+    suiteSetup(co(function*() {
+      // issue the pull request
+      var prPromise = githubPr(GH_TOKEN, {
+        repo: GH_REPO,
+        user: GH_USER,
+        title: 'Testing a pull request',
+        body: 'pr test',
+        branch: 'clean',  // pull request starts at plain
+        baseBranch: 'pr', // but targets the pr branch which has a graph
+        files: [{
+          commit: 'plain commit',
+          path: 'a.txt',
+          content: 'a.txt'
+        }]
+      });
+
+      try {
+        // wait for the server to respond
+        pr = yield prPromise;
+        ctx = yield app.waitForResponse('/github', 201);
+      } catch (e) {
+        console.log(e);
+        throw e;
+      }
+    }));
+
+    suiteTeardown(function() {
+      return pr.destroy();
+    });
+
+    test('graph posted to taskcluster', co(function * () {
+      var expectedIds = ctx.body.taskIds;
+      var graph = app.runtime.scheduler;
+      var graphId = ctx.body.taskGraphId;
+
+      var graphStatus = yield graph.inspect(graphId);
+      var taskIds = graphStatus.tasks.map(returnField('taskId'));
+      assert.deepEqual(expectedIds, taskIds);
+    }));
+
+    test('project creates resultset', co(function* () {
+      // XXX: Replace with some test/project constants?
+      var revHash = ctx.body.treeherderRevisionHash;
+
+      var res = yield thProject.getResultset();
+      var items = res.results.filter(function(item) {
+        // calculated revision hash based on the pull request is a
+        // match
+        return item.revision_hash == revHash;
+      });
+
+      var resultset = items.shift();
+
+      assert.ok(resultset, 'posts resulsts to treeherder');
+      assert.ok(resultset.author.indexOf(GH_USER) !== -1, 'has author');
+    }));
+  });
 });
 
