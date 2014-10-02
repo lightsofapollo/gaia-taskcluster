@@ -56,6 +56,10 @@ module.exports = {
         GITHUB_HEAD_GIT: 'https://github.com/{{githubHeadUser}}/{{githubHeadRepo}}',
         GITHUB_HEAD_REV: '{{githubHeadRevision}}',
         GITHUB_HEAD_BRANCH: '{{githubHeadBranch}}',
+
+        // Treeherder
+        TREEHERDER_PROJECT: '{{treeherderRepo}}',
+        TREEHERDER_REVISION: '{{githubHeadRevision}}'
       },
       maxRunTime: 7200,
       features: {}
