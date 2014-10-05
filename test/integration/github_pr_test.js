@@ -226,6 +226,7 @@ suite('POST /github - pull request events', function() {
         pr = yield prPromise;
         ctx = yield app.waitForResponse('/github', 201);
       } catch (e) {
+        console.log('Error creating commits!');
         console.log(e);
         throw e;
       }
