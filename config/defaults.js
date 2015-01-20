@@ -80,7 +80,7 @@ module.exports = {
   },
 
   taskclusterTreeherder: {
-    route: 'treeherder'
+    route: 'tc-treeherder-stage'
   },
 
   treeherder: {
