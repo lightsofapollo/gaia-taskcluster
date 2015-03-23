@@ -190,7 +190,7 @@ module.exports = function(runtime) {
     );
 
     var commentBody = 'Running tests\n' +
-     TREEHERDER_URL + '?project=' + project.name + '&revision=' + commit;
+     TREEHERDER_URL + '?repo=' + project.name + '&revision=' + commit;
 
     yield comment({
       user: userName,
