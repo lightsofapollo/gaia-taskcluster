@@ -264,4 +264,3 @@ suite('POST /github - pull request events', function() {
     }));
   });
 });
-

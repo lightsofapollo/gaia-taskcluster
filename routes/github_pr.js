@@ -9,6 +9,9 @@ var debug = require('debug')('gaia-treeherder/github/pull_request');
 var merge = require('deap').merge;
 var jsTemplate = require('json-templater/object');
 var slugid = require('slugid');
+var denodeify = require('denodeify');
+
+var TREEHERDER_URL = 'https://treeherder.mozilla.org/#/jobs';
 
 module.exports = function(runtime) {
   var TASKGRAPH_PATH = runtime.taskGraphPath;
@@ -178,6 +181,23 @@ module.exports = function(runtime) {
       });
       throw e;
     }
+
+    // Terrible comment hacks!
+    var comment = denodeify(
+      runtime.githubRaw.issues.createComment.bind(
+        runtime.githubRaw.issues
+      )
+    );
+
+    var commentBody = 'Running tests\n' +
+     TREEHERDER_URL + '?project=' + project.name + '&revision=' + commit;
+
+    yield comment({
+      user: userName,
+      repo: repoName,
+      number: number,
+      body: commentBody
+    });
 
     this.status = 201;
     this.body = {
